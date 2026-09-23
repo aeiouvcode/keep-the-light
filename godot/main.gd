@@ -204,6 +204,40 @@ func tex_skywin():
   img.fill_rect(Rect2i(86, 36, 12, 12), Color(0.9, 0.94, 0.97, 0.85))
   img.fill_rect(Rect2i(78, int(256*0.72), 28, 70), Color(0.59, 0.75, 0.86, 0.16))
   return ImageTexture.create_from_image(img)
+func tex_vista():
+  # the second-landing gallery window: big low moon, moonlit sea, stars
+  var img = Image.create(256, 256, false, Image.FORMAT_RGBA8)
+  for y in 256:
+    var t = y / 255.0
+    var c
+    if t < 0.62: c = Color(0.045, 0.075, 0.135).lerp(Color(0.115, 0.175, 0.26), pow(t / 0.62, 1.6))
+    elif t < 0.66: c = Color(0.20, 0.28, 0.38)  # horizon haze line
+    else: c = Color(0.05, 0.09, 0.15).lerp(Color(0.028, 0.05, 0.09), (t - 0.66) / 0.34)  # sea
+    img.fill_rect(Rect2i(0, y, 256, 1), c)
+  # stars
+  for i in 70:
+    var sx = randi_range(0, 255); var sy = randi_range(0, 150)
+    img.set_pixel(sx, sy, Color(1, 1, 1, randf_range(0.3, 0.8)))
+  # moon + halo
+  var mx = 168.0; var my = 66.0
+  for dy in range(-40, 41):
+    for dx in range(-40, 41):
+      var d = sqrt(dx * dx + dy * dy)
+      var px2 = int(mx + dx); var py2 = int(my + dy)
+      if px2 < 0 or px2 > 255 or py2 < 0 or py2 > 159: continue
+      if d <= 22: img.set_pixel(px2, py2, Color(0.93, 0.95, 0.99, 1.0))
+      elif d <= 40:
+        var cur = img.get_pixel(px2, py2)
+        img.set_pixel(px2, py2, cur.lerp(Color(0.75, 0.83, 0.95, 1.0), 0.5 * (1.0 - (d - 22.0) / 18.0)))
+  # moon reflection shimmer on the sea
+  for i in 90:
+    var ry = randi_range(170, 252)
+    var spread = 6.0 + (ry - 170) * 0.22
+    var rx = int(mx + randf_range(-spread, spread))
+    var rw = randi_range(2, 8)
+    img.fill_rect(Rect2i(clamp(rx, 0, 250), ry, rw, 1), Color(0.62, 0.76, 0.9, randf_range(0.15, 0.5)))
+  return ImageTexture.create_from_image(img)
+
 func tex_rain_streaks():
   var img = Image.create(128, 128, false, Image.FORMAT_RGBA8)
   img.fill(Color(0,0,0,0))
@@ -256,6 +290,7 @@ func build_tower(root):
   var brick = tex_brick()
   var floor_t = tex_floor()
   var sky = tex_skywin()
+  var vista = tex_vista()
   var rain_t = tex_rain_streaks()
   tower.glow_tex = tex_glow()
 
@@ -353,25 +388,26 @@ func build_tower(root):
   tower.win_rain = []
   for th4 in [1.6, 6.0, 10.9, 15.0]:
     var y4 = floor_at(th4, 99.0) + 2.7
+    var wf = 1.9 if abs(th4 - 6.0) < 0.01 else 1.0
     var g = Node3D.new()
     var fr = mat_lam(Color(0.13,0.145,0.18))
     var mk = func(sz, x2, y2):
       var m = box(sz, fr); m.position = Vector3(x2, y2, 0); g.add_child(m)
-    mk.call(Vector3(0.22,2.9,0.34), -0.95, 0)
-    mk.call(Vector3(0.22,2.9,0.34), 0.95, 0)
-    mk.call(Vector3(2.1,0.22,0.34), 0, 1.5)
-    mk.call(Vector3(2.3,0.26,0.34), 0, -1.42)
+    mk.call(Vector3(0.22,2.9,0.34), -0.95 * wf, 0)
+    mk.call(Vector3(0.22,2.9,0.34), 0.95 * wf, 0)
+    mk.call(Vector3(2.1 * wf,0.22,0.34), 0, 1.5)
+    mk.call(Vector3(2.3 * wf,0.26,0.34), 0, -1.42)
     var skyq = MeshInstance3D.new()
-    var pm = PlaneMesh.new(); pm.size = Vector2(1.75, 3.1)
+    var pm = PlaneMesh.new(); pm.size = Vector2(1.75 * wf, 3.1)
     skyq.mesh = pm
     var skym = StandardMaterial3D.new()
     skym.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-    skym.albedo_texture = sky
+    skym.albedo_texture = vista if wf > 1.0 else sky
     skyq.material_override = skym
-    skyq.position.z = -0.08
+    skyq.position.z = 0.06
     g.add_child(skyq)
     var rainq = MeshInstance3D.new()
-    var pm2 = PlaneMesh.new(); pm2.size = Vector2(1.75, 3.1)
+    var pm2 = PlaneMesh.new(); pm2.size = Vector2(1.75 * wf, 3.1)
     rainq.mesh = pm2
     var rainm = StandardMaterial3D.new()
     rainm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -379,9 +415,24 @@ func build_tower(root):
     rainm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     rainm.uv1_scale = Vector3(1, 3, 1)
     rainq.material_override = rainm
-    rainq.position.z = -0.04
+    rainq.position.z = 0.10
     g.add_child(rainq)
     tower.win_rain.append(rainm)
+    if wf > 1.0:
+      var spill = MeshInstance3D.new()
+      var spm = PlaneMesh.new(); spm.size = Vector2(3.6, 4.4)
+      spill.mesh = spm
+      var spmt = StandardMaterial3D.new()
+      spmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+      spmt.albedo_texture = tower.glow_tex
+      spmt.albedo_color = Color(0.62, 0.74, 0.88, 0.4)
+      spmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+      spmt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+      spill.material_override = spmt
+      spill.rotation.x = -PI / 2.0
+      spill.rotation.z = 0.22
+      spill.position = Vector3(0.2, -2.62, 2.0)
+      g.add_child(spill)
     place_radial(g, th4, 6.97, y4)
     root.add_child(g)
 
@@ -745,6 +796,11 @@ func build_hud():
     "The tower goes dark, and the rain keeps what it took. Another can of oil, another climb.", b3)
   ui.fail.visible = false
   layer.add_child(ui.fail)
+  var b4 = mk_button("RESUME"); b4.pressed.connect(toggle_pause)
+  ui.paused = mk_card("PAUSED", "THE STORM WAITS",
+    "WASD or left stick - climb. Mouse or drag - look. SPACE or JUMP - jump. Walk into a pane to take it. ESC - back to the stair.", b4)
+  ui.paused.visible = false
+  layer.add_child(ui.paused)
 
 # ---------- exterior ending ----------
 var EXT = {}
@@ -1015,10 +1071,19 @@ func layout_hud():
   ui.jumpb.size = Vector2(96, 96)
   cam.fov = 68 if vs.x / vs.y < 0.75 else (62 if vs.x / vs.y < 1.05 else 55)
 
+func toggle_pause():
+  if ST.phase == "play":
+    ST.phase = "pause"
+    ui.paused.visible = true
+  elif ST.phase == "pause":
+    ST.phase = "play"
+    ui.paused.visible = false
+
 func _input(ev):
   if ev is InputEventKey:
     keys[ev.physical_keycode] = ev.pressed
     if ev.pressed and ev.physical_keycode == KEY_SPACE: press_jump()
+    if ev.pressed and ev.physical_keycode == KEY_ESCAPE: toggle_pause()
   if ev is InputEventScreenTouch:
     if ev.pressed:
       var vs = get_viewport().get_visible_rect().size
@@ -1174,6 +1239,9 @@ func _process(dt):
     camTh += dt * 0.05
     cam.position = Vector3(cos(camTh) * 2.2, 2.6 + sin(t_now * 0.3) * 0.4, sin(camTh) * 2.2)
     cam.look_at(Vector3(cos(1.1)*5.6, 2.0, sin(1.1)*5.6), Vector3.UP)
+    return
+
+  if ST.phase == "pause":
     return
 
   if ST.phase == "play" or ST.phase == "relight":

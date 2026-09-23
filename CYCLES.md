@@ -39,3 +39,24 @@ Next cycle candidates (in priority order):
 2. Title-screen motion: slow camera drift on the stair column.
 3. Pause menu with controls recap (Esc / touch button).
 4. Per-pane pickup chime ladder tied to hue order (currently count-based).
+
+## Cycle 4 (shipped)
+- Window depth bug (pre-existing): the sky and rain quads sat at z=-0.08/-0.04,
+  OUTSIDE the wall face - every window in the game rendered as a black hole
+  since cycle 1. Moved inside the frame tunnel (+0.06/+0.10, matching the
+  door-panel convention). All four windows now show sky.
+- Gallery window at the second landing (th=6.0): 1.9x width, dedicated
+  tex_vista() - big haloed moon, moonlit sea with reflection shimmer, stars
+  (design verified via pixel replica), plus an additive moon-spill pool on
+  the stair.
+- Pause: ESC toggles a PAUSED card (controls recap, RESUME button); world,
+  oil and thunder freeze while paused - verified oil frozen at 82 then
+  resuming. Touch pause button still pending.
+- Title camera drift existed since the polish patch (orbit + bob) - backlog
+  item closed with no change needed.
+
+Known gap (next cycle): the follow camera hugs the keeper, so wall features
+pass at the frame's left edge - the vista is seen by looking around, not
+handed to the player. Consider a subtle camera pull-out near th=6.0, or a
+small landing. In-game vista framing capture still pending; verified so
+far by texture replica + geometry/depth reasoning + window-frame presence.

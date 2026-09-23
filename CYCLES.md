@@ -118,3 +118,13 @@ classic double-strobe: a second 0.6 pulse as the first decays past 0.45. Ignite 
 Verified: trace ordering lightning -> thunder confirmed in the exported build (gap scaled by
 swiftshader slowdown, ratio matches the slowdown factor); verify3 full loop WON ok, chime ladder
 intact. pck 74,080 bytes, clean.
+
+## Cycle 10 - 2026-09-23 ~19:33 IST - PASS
+Built: exterior ending detail. The tower silhouette was a flat cutout; a soft blue DirectionalLight
+from the moon now rims its night side so it reads as form (visible in f-ending.png). Each sea rock
+got a breathing surf-foam ring (additive glow quad, alpha pulsing on its own phase). All procedural,
+no assets.
+Verification: verify3 full loop WON ok, chime ladder intact; f-ending.png eyeballed - rim works,
+beam/rain/reflection compose. Note: auto-mode playthrough does not reach the ending in real time
+under swiftshader (game-time vs wall-clock); verify3 fast mode is the ending verification path.
+pck 74,800 bytes, clean.

@@ -931,13 +931,37 @@ func build_exterior():
     c.rotation.z = d * PI/2.0; c.position.x = d * 45
     beams.add_child(c)
   EXT.beams = beams
-  # rocks
+  # rocks, each with a breathing surf-foam ring at its base
+  EXT.foam = []
   for k in 5:
     var rk = MeshInstance3D.new()
-    var rc = CylinderMesh.new(); rc.top_radius = 0.2; rc.bottom_radius = randf_range(3,7); rc.height = randf_range(3,8); rc.radial_segments = 7
+    var rrad = randf_range(3,7)
+    var rc = CylinderMesh.new(); rc.top_radius = 0.2; rc.bottom_radius = rrad; rc.height = randf_range(3,8); rc.radial_segments = 7
     rk.mesh = rc; rk.material_override = mat_lam(Color(0.055,0.07,0.094))
     rk.position = Vector3(randf_range(-30,45), 0, randf_range(-60,-25))
     g.add_child(rk)
+    var fq = MeshInstance3D.new()
+    var fp = PlaneMesh.new(); fp.size = Vector2(rrad * 3.0, rrad * 3.0)
+    fq.mesh = fp
+    var fm = StandardMaterial3D.new()
+    fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    fm.albedo_color = Color(0.72, 0.80, 0.88, 0.14)
+    fm.emission_enabled = true; fm.emission = Color(0.72, 0.80, 0.88); fm.emission_energy_multiplier = 0.4
+    fm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    fm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+    fm.albedo_texture = tower.glow_tex
+    fq.material_override = fm
+    fq.rotation.x = -PI / 2.0
+    fq.position = Vector3(rk.position.x, 0.28, rk.position.z)
+    g.add_child(fq)
+    EXT.foam.append(fm)
+  # moonlight rim: a soft blue key from the moon so the tower reads as form, not cutout
+  var mrim = DirectionalLight3D.new()
+  mrim.light_color = Color(0.62, 0.72, 0.88)
+  mrim.light_energy = 0.5
+  mrim.position = Vector3(-40, 34, -120)
+  g.add_child(mrim)
+  mrim.look_at(Vector3(20, 12, -42), Vector3.UP)
   # rain (immediate lines, rebuilt each frame)
   var rainmi = MeshInstance3D.new()
   rainmi.mesh = ImmediateMesh.new()
@@ -1483,6 +1507,9 @@ func _process(dt):
       im.surface_add_vertex(d3)
       im.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
     im.surface_end()
+    for i5 in EXT.foam.size():
+      var fma = EXT.foam[i5]
+      fma.albedo_color.a = 0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))
     for i4 in EXT.clouds.size():
       var c3 = EXT.clouds[i4]
       c3.position.x += dt * (0.6 + i4 * 0.15)

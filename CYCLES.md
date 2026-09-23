@@ -109,3 +109,12 @@ blend (cycle 6) holds the moonlit vista framed. Closes the cycle-5 known gap ("p
 Verified: eyeballed landing frames zb20/zb21 (flat platform reads, railing follows, keeper level);
 verify3 full loop WON ok with chime ladder intact; pause chip still works (pixel check in vp2 run).
 pck 73,648 bytes, clean.
+
+## Cycle 9 - 2026-09-23 ~18:42 IST - PASS
+Built: storm physics honesty. Lightning and thunder were simultaneous; now the flash strikes first
+and the rumble arrives after a distance-based delay (0.5-2.2s). Near strikes land louder (-8dB)
+and sharper (pitch 1.05); far strikes softer (-14dB) and lower (0.85). The flash also got the
+classic double-strobe: a second 0.6 pulse as the first decays past 0.45. Ignite flash untouched.
+Verified: trace ordering lightning -> thunder confirmed in the exported build (gap scaled by
+swiftshader slowdown, ratio matches the slowdown factor); verify3 full loop WON ok, chime ladder
+intact. pck 74,080 bytes, clean.

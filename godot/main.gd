@@ -1003,6 +1003,10 @@ var stick_origin = Vector2.ZERO
 var is_touch = false
 var toast_t = 0.0
 var thunder_t = 7.0
+var thunder_pending = -1.0
+var thunder_vol = -8.0
+var thunder_pitch = 1.0
+var flash2_armed = false
 var title_t = 0.0
 var stat_t = 0.0
 
@@ -1247,12 +1251,26 @@ func _process(dt):
       trace_t = 0.0
       print("[KTL] trace phase=", ST.phase, " th=", snapped(ST.th,0.01), " y=", snapped(ST.y,0.01), " oil=", int(ST.oil), " panes=", ST.panes)
   var t_now = Time.get_ticks_msec() / 1000.0
-  # thunder + lightning
+  # thunder + lightning: the flash comes first, the rumble arrives late by
+  # distance (near strike = short gap, louder, sharper; far = long gap, soft, low)
   thunder_t -= dt
   if thunder_t <= 0:
     thunder_t = randf_range(7.0, 16.0)
     flashV = 1.0
-    sfx("thunder", -8.0, randf_range(0.9, 1.1))
+    flash2_armed = true
+    var dist = randf()
+    thunder_pending = 0.5 + dist * 1.7
+    thunder_vol = -8.0 - dist * 6.0
+    thunder_pitch = 1.05 - dist * 0.2
+    print("[KTL] lightning delay=", snapped(thunder_pending, 0.01))
+  if thunder_pending > 0.0:
+    thunder_pending -= dt
+    if thunder_pending <= 0.0:
+      sfx("thunder", thunder_vol, thunder_pitch)
+      print("[KTL] thunder vol=", int(thunder_vol))
+  if flash2_armed and flashV < 0.45:
+    flashV = max(flashV, 0.6)  # second strobe of the same strike
+    flash2_armed = false
   if flashV > 0.01: flashV *= pow(0.02, dt)
   else: flashV = 0.0
   flash_light.light_energy = flashV * 2.0

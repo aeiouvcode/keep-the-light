@@ -1246,7 +1246,7 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
@@ -1496,6 +1496,12 @@ func _process(dt):
       if DROPTEST and not dropped and ST.elapsed > 1.0:  # debug: drop the keeper into the stair gap
         dropped = true
         ST.th = 10.15; ST.y = 12.0; ST.vy = 0.0; ST.grounded = false
+      var beat_th = [6.0, 12.0, 17.0]
+      var beat_msg = ["THE VILLAGE IS FAR BELOW", "THE STORM IS THICK HERE", "THE LIGHT IS NEAR"]
+      if ST.beats < 3 and ST.th > beat_th[ST.beats]:
+        print("[KTL] beat ", ST.beats + 1, " th=", snapped(ST.th, 0.1), " msg=", beat_msg[ST.beats])
+        toast(beat_msg[ST.beats])
+        ST.beats += 1
       if ST.oil < 16 and not ST.lowWarned:
         ST.lowWarned = true
         toast("THE OIL IS LOW")

@@ -262,3 +262,15 @@ latest trace; swiftshader bursts skip windows) - fixed by scanning all buffered 
 Not verified: the droplet mesh/glow itself never landed in a frame (it sits around the curve
 from the follow camera). Mechanic is trace-verified; close-up frame is queued first for
 cycle 23. pck 80,064 bytes.
+
+## Cycle 23 - 2026-09-24 ~04:45 IST - PASS
+Built: altitude story beats - three one-shot toasts as the climb passes th 6 / 12 / 17:
+"THE VILLAGE IS FAR BELOW", "THE STORM IS THICK HERE", "THE LIGHT IS NEAR". Pure pacing;
+no mechanic change. Traced as "[KTL] beat N th=.. msg=..".
+Also closed cycle 22's open item: the droplet close-up frame (drop2.png, keeper at th=11.74
+with the amber drop at th=12.5 glowing ahead at the rail) - droplet visual now eyeballed.
+Verified: beats 1-2 traced on the normal-speed run, all three traced in order on a fast run
+(6.1 / 12.1 / 17.1); beat-1 toast eyeballed in frame (beat1.png); droplet frame eyeballed
+(captured on the pre-beats build - droplet visuals unchanged between builds, beats are
+HUD-only). verify3 WON ok on the shipped build. One flaky verify3 run (no output) while two
+headless Chromes contended; rerun clean. pck 80,176 bytes.

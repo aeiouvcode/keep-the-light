@@ -60,3 +60,22 @@ pass at the frame's left edge - the vista is seen by looking around, not
 handed to the player. Consider a subtle camera pull-out near th=6.0, or a
 small landing. In-game vista framing capture still pending; verified so
 far by texture replica + geometry/depth reasoning + window-frame presence.
+
+## Cycle 5 (shipped)
+- Vista composition: the cycle-4 texture was verified rendering but composed
+  for a full view the camera never shows (moon at 26% height, sea at the
+  bottom third). Pixel-sampled the in-game window: it was rendering navy
+  sky all along, reading as a hole. Recomposed tex_vista for the visible
+  mid band (moon at 46%, brighter sky/sea/stars), brightened the narrow
+  windows' sky and moved their moon into view.
+- Camera: in the gallery zone (|th-6.0|<0.85) the follow camera eases its
+  trail from 0.5 to 1.05 rad so the window enters the frame instead of
+  passing at the edge.
+- Verification tooling lesson: headless swiftshader fps makes wall-clock
+  screenshot timing useless; trace-triggered single screenshots from a
+  polling loop (never from inside the console handler - that kills the
+  CDP session) are the reliable pattern.
+
+Known gap (next cycle): the keeper still blocks the window's center at the
+closest approach; the moon reveals at the left of the frame. Consider
+swinging to -1.3 rad or placing a landing.

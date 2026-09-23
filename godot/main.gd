@@ -196,46 +196,48 @@ func tex_skywin():
   for y in 256:
     var t = y / 255.0
     var c = Color(0.027, 0.047, 0.086)
-    if t > 0.55 and t < 0.72: c = Color(0.063, 0.106, 0.173).lerp(Color(0.165, 0.259, 0.345), (t - 0.55) / 0.17)
-    elif t >= 0.72 and t < 0.78: c = Color(0.055, 0.086, 0.133)
+    if t > 0.55 and t < 0.72: c = Color(0.10, 0.16, 0.26).lerp(Color(0.22, 0.33, 0.44), (t - 0.55) / 0.17)
+    elif t >= 0.72 and t < 0.78: c = Color(0.09, 0.135, 0.20)
     img.fill_rect(Rect2i(0, y, 128, 1), c)
-  for i in 26:
-    img.set_pixel(randi_range(0,127), randi_range(0,127), Color(1,1,1,0.5))
-  img.fill_rect(Rect2i(86, 36, 12, 12), Color(0.9, 0.94, 0.97, 0.85))
+  for i in 30:
+    img.set_pixel(randi_range(0,127), randi_range(0,127), Color(1,1,1,0.6))
+  img.fill_rect(Rect2i(84, 88, 18, 18), Color(0.9, 0.94, 0.97, 0.9))
   img.fill_rect(Rect2i(78, int(256*0.72), 28, 70), Color(0.59, 0.75, 0.86, 0.16))
   return ImageTexture.create_from_image(img)
 func tex_vista():
-  # the second-landing gallery window: big low moon, moonlit sea, stars
+  # the second-landing gallery window: big moon, moonlit sea, stars.
+  # composed for the mid band - the follow camera mostly shows the texture's middle.
   var img = Image.create(256, 256, false, Image.FORMAT_RGBA8)
   for y in 256:
     var t = y / 255.0
     var c
-    if t < 0.62: c = Color(0.045, 0.075, 0.135).lerp(Color(0.115, 0.175, 0.26), pow(t / 0.62, 1.6))
-    elif t < 0.66: c = Color(0.20, 0.28, 0.38)  # horizon haze line
-    else: c = Color(0.05, 0.09, 0.15).lerp(Color(0.028, 0.05, 0.09), (t - 0.66) / 0.34)  # sea
+    if t < 0.60: c = Color(0.075, 0.115, 0.20).lerp(Color(0.16, 0.235, 0.345), pow(t / 0.60, 1.5))
+    elif t < 0.645: c = Color(0.30, 0.40, 0.52)  # horizon haze line
+    else: c = Color(0.085, 0.14, 0.215).lerp(Color(0.045, 0.075, 0.13), (t - 0.645) / 0.355)  # sea
     img.fill_rect(Rect2i(0, y, 256, 1), c)
   # stars
-  for i in 70:
-    var sx = randi_range(0, 255); var sy = randi_range(0, 150)
-    img.set_pixel(sx, sy, Color(1, 1, 1, randf_range(0.3, 0.8)))
-  # moon + halo
-  var mx = 168.0; var my = 66.0
-  for dy in range(-40, 41):
-    for dx in range(-40, 41):
+  for i in 80:
+    var sx = randi_range(0, 255); var sy = randi_range(0, 148)
+    img.set_pixel(sx, sy, Color(1, 1, 1, randf_range(0.35, 0.85)))
+    if i % 5 == 0: img.set_pixel((sx + 1) % 256, sy, Color(1, 1, 1, 0.4))
+  # moon + halo, centered in the visible band
+  var mx = 150.0; var my = 118.0
+  for dy in range(-50, 51):
+    for dx in range(-50, 51):
       var d = sqrt(dx * dx + dy * dy)
       var px2 = int(mx + dx); var py2 = int(my + dy)
-      if px2 < 0 or px2 > 255 or py2 < 0 or py2 > 159: continue
-      if d <= 22: img.set_pixel(px2, py2, Color(0.93, 0.95, 0.99, 1.0))
-      elif d <= 40:
+      if px2 < 0 or px2 > 255 or py2 < 0 or py2 > 162: continue
+      if d <= 26: img.set_pixel(px2, py2, Color(0.94, 0.96, 1.0, 1.0))
+      elif d <= 50:
         var cur = img.get_pixel(px2, py2)
-        img.set_pixel(px2, py2, cur.lerp(Color(0.75, 0.83, 0.95, 1.0), 0.5 * (1.0 - (d - 22.0) / 18.0)))
+        img.set_pixel(px2, py2, cur.lerp(Color(0.72, 0.81, 0.94, 1.0), 0.55 * (1.0 - (d - 26.0) / 24.0)))
   # moon reflection shimmer on the sea
-  for i in 90:
-    var ry = randi_range(170, 252)
-    var spread = 6.0 + (ry - 170) * 0.22
+  for i in 110:
+    var ry = randi_range(168, 252)
+    var spread = 7.0 + (ry - 168) * 0.24
     var rx = int(mx + randf_range(-spread, spread))
-    var rw = randi_range(2, 8)
-    img.fill_rect(Rect2i(clamp(rx, 0, 250), ry, rw, 1), Color(0.62, 0.76, 0.9, randf_range(0.15, 0.5)))
+    var rw = randi_range(2, 9)
+    img.fill_rect(Rect2i(clamp(rx, 0, 248), ry, rw, 1), Color(0.66, 0.79, 0.92, randf_range(0.2, 0.55)))
   return ImageTexture.create_from_image(img)
 
 func tex_rain_streaks():
@@ -1356,6 +1358,8 @@ func _process(dt):
       ui.notch.color.a = 0
     # camera
     var desired = ST.th - 0.5 * ST.faceDir
+    if ST.phase == "play" and abs(ST.th - 6.0) < 0.85:
+      desired = ST.th - 1.05 * ST.faceDir  # ease wide at the gallery window
     camTh = lerp(camTh, desired, 1.0 - pow(0.001, dt))
     camY = lerp(camY, ST.y + 2.4, 1.0 - pow(0.001, dt))
     var at_top = ST.y > 18.2

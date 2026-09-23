@@ -179,3 +179,13 @@ Verified on the exported build: fresh-profile win printed is_best=true and the c
 is_best=false and showed "BEST 0:05"; a startoil=8 fail printed fail panes=0 and the card
 showed "0 OF 5 PANES LIT" over the properly dark stair. verify3 full loop WON ok.
 pck 76,928 bytes, clean.
+
+## Cycle 16 - 2026-09-24 ~01:30 IST - PASS
+Built: gusts you can see. Cycle 14's wind pushed invisibly; now a gust also slants the
+window rain (uv drift + 1.4x scroll spike, decaying ~1s) and dips the lantern 30% for a
+heartbeat - the tower flinches with the weather. Added a gusthold=1 debug param that pins
+the gust visuals for capture (like startoil).
+Verified on the exported build with a pinned A/B (manual BEGIN, keeper idle, same scene):
+lantern pool 70.1 -> 61.7 mean brightness with gusthold; a window band changed 4.6x more
+than a plain wall band (16.5 vs 3.6 mean abs diff) from the rain slant. Stacked crops
+eyeballed - the doorway spill visibly weakens. verify3 full loop WON ok. pck 77,168 bytes.

@@ -24,6 +24,7 @@ const MISSING = [1,3,5,8,10]
 const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.55,0.60), Color(0.65,0.62,0.95), Color(0.62,0.90,0.60)]
 var AUTO = false
 var FAST = false
+var GUSTHOLD = false
 var START_OIL = 80.0
 
 func surf_y(s, th):
@@ -1033,6 +1034,7 @@ var is_touch = false
 var toast_t = 0.0
 var thunder_t = 7.0
 var gust_t = 6.0
+var gust_vis = 0.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
 var thunder_pitch = 1.0
@@ -1050,6 +1052,7 @@ func _ready():
     FAST = "fast=1" in q
     var mo = q.find("startoil=")
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
+    GUSTHOLD = "gusthold=1" in q
   else:
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
@@ -1346,6 +1349,7 @@ func _process(dt):
     gust_t = randf_range(lerp(11.0, 6.0, storm_h), lerp(17.0, 9.0, storm_h))
     ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * (1.0 if randf() < 0.5 else -1.0)
     sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
+    gust_vis = 1.0
     print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
   if thunder_pending > 0.0:
     thunder_pending -= dt
@@ -1359,8 +1363,11 @@ func _process(dt):
   else: flashV = 0.0
   flash_light.light_energy = flashV * 2.0
   # window rain scroll
+  gust_vis *= pow(0.1, dt)
+  if GUSTHOLD and ST.phase == "play": gust_vis = 1.0  # debug: hold the gust visuals for capture
   for m in tower.win_rain:
-    m.uv1_offset.y += dt * 0.9
+    m.uv1_offset.y += dt * 0.9 * (1.0 + 1.4 * gust_vis)
+    m.uv1_offset.x += dt * 0.55 * gust_vis
   # toast fade
   if toast_t > 0:
     toast_t -= dt
@@ -1467,7 +1474,7 @@ func _process(dt):
     lantern.global_position = lp
     var oil_frac = clamp(ST.oil / 80.0, 0.0, 1.0)
     var flick = 1.0 + sin(t_now*13.0)*0.06 + sin(t_now*31.0)*0.04 + (sin(t_now*47.0)*0.15 if oil_frac < 0.2 else 0.0)
-    lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick
+    lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick * (1.0 - 0.3 * gust_vis)
     keeper.lglow.modulate.a = 0.5 + 0.4 * oil_frac * flick
     # shards shimmer
     for i2 in tower.shards.size():

@@ -138,3 +138,12 @@ startoil=N debug param (5-80) so the fail path is testable headlessly.
 Verified: dedicated fail run begin -> lowoil -> fail traces in order; fail-card frame shows the
 card over a properly dark stair (lantern out). verify3 full loop WON ok, chime ladder intact.
 pck 75,296 bytes, clean.
+
+## Cycle 12 - 2026-09-23 ~22:20 IST - PASS (local; push pending - cloud browser outage)
+Built: title-screen detail pass. Best time now persists (localStorage ktl_best): a win saves
+m:ss and the title card sub label reads "A STORM-NIGHT ERRAND - BEST M:SS" once a best exists.
+The title card also gets a proper entrance - it fades in over 0.9s at boot instead of popping.
+Verified: fade confirmed by pixel average (card-avg 121 early vs full parchment late); best
+line verified end-to-end on the exported build - auto-win printed "new best 0:16", reload
+showed "A STORM-NIGHT ERRAND - BEST 0:16" (zoomed crop eyeballed). verify3 full loop WON ok.
+pck 75,888 bytes, clean.

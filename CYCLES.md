@@ -198,3 +198,15 @@ screen, during the climb, and through the relight. No assets; fully within the s
 Verified: horn trace captured on the title screen of the exported build (horn_t scheduler);
 verify3 full loop WON ok. Note for the report: the first horn comes at horn_t=24s, so a
 fast auto-win (16.2s) never hears one mid-climb - human-paced runs will. pck 77,408 bytes.
+
+## Cycle 18 - 2026-09-24 ~02:21 IST - PASS
+Built: the door swings shut behind you. The entrance panel was a static slab ajar at 0.16
+rad; it now hangs on a real edge hinge (0.5 rad ajar) and swings shut 0.35s into every run
+with a soft low thunk (land sample at -13dB, pitch 0.62). The night is outside now.
+First attempt pivoted the panel at its center and the swing did not read (confounded even
+in a pinned A/B); re-hung on an edge hinge and the ajar/shut difference is visible.
+Debug params dooropen=1 / doorshut=1 pin the states for capture.
+Verified: pinned A/B on the exported build (idle keeper, same camera) - ajar frame shows
+the slab swung off its frame with a dark gap, shut frame sits flush (eyeballed side by
+side); normal-flow trace "begin -> door shut" captured; verify3 full loop WON ok.
+pck 77,856 bytes, clean.

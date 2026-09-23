@@ -25,6 +25,8 @@ const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.5
 var AUTO = false
 var FAST = false
 var GUSTHOLD = false
+var DOORSHUT = false
+var DOOROPEN = false
 var START_OIL = 80.0
 
 func surf_y(s, th):
@@ -335,7 +337,9 @@ func build_tower(root):
   var dl = box(Vector3(0.28,3.2,0.5), dframe); dl.position.x = -1.05; door.add_child(dl)
   var dr = box(Vector3(0.28,3.2,0.5), dframe); dr.position.x = 1.05; door.add_child(dr)
   var dt2 = box(Vector3(2.4,0.3,0.5), dframe); dt2.position.y = 1.65; door.add_child(dt2)
-  var panel = box(Vector3(1.8,3.1,0.12), wood); panel.position = Vector3(0,0.05,0.18); panel.rotation.y = 0.16; door.add_child(panel)
+  var hinge = Node3D.new(); hinge.position = Vector3(-0.9, 0.05, 0.18); hinge.rotation.y = 0.5; door.add_child(hinge)
+  var panel = box(Vector3(1.8,3.1,0.12), wood); panel.position = Vector3(0.9, 0, 0); hinge.add_child(panel)
+  tower.door_panel = hinge
   place_radial(door, 0, 6.75, 1.6)
   root.add_child(door)
 
@@ -1059,6 +1063,8 @@ func _ready():
     var mo = q.find("startoil=")
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
     GUSTHOLD = "gusthold=1" in q
+    DOORSHUT = "doorshut=1" in q
+    DOOROPEN = "dooropen=1" in q
   else:
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
@@ -1195,6 +1201,16 @@ func toast(msg):
 
 func reset_run():
   ST.phase = "play"; ST.th = 0.0; ST.y = 0.0; ST.vy = 0.0; ST.grounded = true
+  # the door swings shut behind the keeper - the night is outside now
+  if tower.has("door_panel"):
+    tower.door_panel.rotation.y = 0.5
+    if DOORSHUT:  # debug: skip the swing for capture
+      tower.door_panel.rotation.y = 0.0
+    if not DOOROPEN:  # DOOROPEN holds the door ajar for capture
+      var dtw = create_tween()
+      dtw.tween_interval(0.35)
+      dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+      dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0

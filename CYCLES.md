@@ -147,3 +147,12 @@ Verified: fade confirmed by pixel average (card-avg 121 early vs full parchment 
 line verified end-to-end on the exported build - auto-win printed "new best 0:16", reload
 showed "A STORM-NIGHT ERRAND - BEST 0:16" (zoomed crop eyeballed). verify3 full loop WON ok.
 pck 75,888 bytes, clean.
+
+## Cycle 13 - 2026-09-23 ~23:11 IST - PASS
+Built: storm escalation with altitude. The storm was flat all the way up; now strikes come
+more often the higher the keeper climbs (interval lerps 7-16s at the base to 3.2-7.5s at the
+top, driven by y/19) and the wind swell rises with height (-17dB to -13dB, still soft).
+Oil economy untouched, so the climb stays fair - the arc is dramatic, not punitive.
+Verified: dedicated headless run captured the lightning traces - h=0.4 next=9.36s, h=0.99
+next=6.93s (below the old flat minimum of 7s, impossible before), h=1.0 next=4.06s and 5.51s.
+verify3 full loop WON ok, all 5 pane chimes traced. pck 76,048 bytes, clean.

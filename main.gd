@@ -1306,16 +1306,21 @@ func _process(dt):
   var t_now = Time.get_ticks_msec() / 1000.0
   # thunder + lightning: the flash comes first, the rumble arrives late by
   # distance (near strike = short gap, louder, sharper; far = long gap, soft, low)
+  # storm escalation: the higher the climb, the worse the storm. Strikes come
+  # more often and the wind swell rises with altitude (still soft - sound bar).
+  var storm_h = clamp(ST.y / 19.0, 0.0, 1.0)
   thunder_t -= dt
   if thunder_t <= 0:
-    thunder_t = randf_range(7.0, 16.0)
+    thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h))
     flashV = 1.0
     flash2_armed = true
     var dist = randf()
     thunder_pending = 0.5 + dist * 1.7
     thunder_vol = -8.0 - dist * 6.0
     thunder_pitch = 1.05 - dist * 0.2
-    print("[KTL] lightning delay=", snapped(thunder_pending, 0.01))
+    print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01))
+  if players.has("wind"):
+    players.wind.volume_db = -17.0 + 4.0 * storm_h
   if thunder_pending > 0.0:
     thunder_pending -= dt
     if thunder_pending <= 0.0:

@@ -95,6 +95,10 @@ func build_audio():
     return (randf() * 2.0 - 1.0) * 0.10 * sw * sin(PI * float(i) / n))
   SND.rain = make_wav(rain); SND.rain.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.rain.loop_end = rain.size()
   SND.wind = make_wav(wind); SND.wind.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.wind.loop_end = wind.size()
+  SND.surf = make_wav(synth(4.0, func(t, i, n, lp):
+    var sw = 0.5 + 0.5 * sin(t * 0.55 + sin(t * 0.23) * 1.5)
+    return ((randf() * 2.0 - 1.0) * 0.22 + lp * 1.7) * 0.08 * sw * sin(PI * float(i) / n)))
+  SND.surf.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.surf.loop_end = int(4.0 * SR)
   SND.thunder = make_wav(synth(2.8, func(t, i, n, lp):
     var env = exp(-t * 1.6)
     var r = (randf() * 2.0 - 1.0)
@@ -115,7 +119,7 @@ func build_audio():
   SND.land = make_wav(synth(0.16, func(t, i, n, lp):
     return sin(TAU2 * (90.0 - t * 200.0) * t) * exp(-t * 22.0) * 0.5))
   SND.step = make_wav(synth(0.09, func(t, i, n, lp):
-    return (randf() * 2.0 - 1.0) * exp(-t * 60.0) * 0.16 + sin(TAU2 * 75.0 * t) * exp(-t * 50.0) * 0.2))
+    return ((randf() * 2.0 - 1.0) * 0.4 + lp * 1.3) * exp(-t * 60.0) * 0.15 + sin(TAU2 * 75.0 * t) * exp(-t * 50.0) * 0.2))
   SND.ignite = make_wav(synth(1.5, func(t, i, n, lp):
     var r = (randf() * 2.0 - 1.0)
     var env = min(t * 6.0, 1.0) * exp(-t * 1.5)
@@ -929,6 +933,9 @@ func _ready():
     FAST = "--fast" in args
   is_touch = DisplayServer.is_touchscreen_available()
   build_audio()
+  loop_sfx("rain", -13.0)
+  loop_sfx("wind", -17.0)
+  loop_sfx("surf", -20.0)
   panes = pane_pos_list()
   # tower environment
   env_tower.background_mode = Environment.BG_COLOR

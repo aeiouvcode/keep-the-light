@@ -100,6 +100,10 @@ func build_audio():
     return (randf() * 2.0 - 1.0) * 0.10 * sw * sin(PI * float(i) / n))
   SND.rain = make_wav(rain); SND.rain.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.rain.loop_end = rain.size()
   SND.wind = make_wav(wind); SND.wind.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.wind.loop_end = wind.size()
+  # gust: a short soft swell that telegraphs a push of wind
+  SND.gust = make_wav(synth(0.9, func(t, i, n, lp):
+    var env = sin(PI * float(i) / n)
+    return (randf() * 2.0 - 1.0) * 0.12 * env * env))
   SND.surf = make_wav(synth(4.0, func(t, i, n, lp):
     var sw = 0.5 + 0.5 * sin(t * 0.55 + sin(t * 0.23) * 1.5)
     return ((randf() * 2.0 - 1.0) * 0.22 + lp * 1.7) * 0.08 * sw * sin(PI * float(i) / n)))
@@ -1005,7 +1009,7 @@ func build_exterior():
 
 # ---------- state, input, loop ----------
 var ST = {phase="title", th=0.0, y=0.0, vy=0.0, grounded=true, coyote=0.0, oil=80.0,
-  panes=0, elapsed=0.0, faceDir=1, walkPh=0.0, stepT=0.0, relightT=0.0, lowWarned=false,
+  panes=0, elapsed=0.0, faceDir=1, walkPh=0.0, stepT=0.0, relightT=0.0, lowWarned=false, gust_v=0.0,
   warnedTop=false, endT=0.0}
 var keeper = {}
 var cam = Camera3D.new()
@@ -1028,6 +1032,7 @@ var stick_origin = Vector2.ZERO
 var is_touch = false
 var toast_t = 0.0
 var thunder_t = 7.0
+var gust_t = 6.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
 var thunder_pitch = 1.0
@@ -1183,6 +1188,7 @@ func reset_run():
   ST.phase = "play"; ST.th = 0.0; ST.y = 0.0; ST.vy = 0.0; ST.grounded = true
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
+  ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
@@ -1321,6 +1327,15 @@ func _process(dt):
     print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01))
   if players.has("wind"):
     players.wind.volume_db = -17.0 + 4.0 * storm_h
+  # wind gusts push the keeper along the stair - the storm you feel, stronger
+  # with altitude. Modest next to walk speed (OMEGA 1.2), so it costs footing
+  # and seconds, never control.
+  gust_t -= dt
+  if gust_t <= 0 and ST.phase == "play":
+    gust_t = randf_range(lerp(11.0, 6.0, storm_h), lerp(17.0, 9.0, storm_h))
+    ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * (1.0 if randf() < 0.5 else -1.0)
+    sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
+    print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
   if thunder_pending > 0.0:
     thunder_pending -= dt
     if thunder_pending <= 0.0:
@@ -1358,7 +1373,9 @@ func _process(dt):
       if abs(stick_x) > 0.15: dir = stick_x
       if AUTO: dir = auto_dir()
     var OMEGA = 1.2
-    ST.th = max(0.0, ST.th + dir * OMEGA * dt)
+    var gv = ST.gust_v if ST.phase == "play" else 0.0
+    ST.th = max(0.0, ST.th + (dir * OMEGA + gv) * dt)
+    ST.gust_v = move_toward(ST.gust_v, 0.0, dt * 0.9)
     if dir != 0:
       ST.faceDir = sign(dir)
       ST.walkPh += dt * 9

@@ -156,3 +156,14 @@ Oil economy untouched, so the climb stays fair - the arc is dramatic, not puniti
 Verified: dedicated headless run captured the lightning traces - h=0.4 next=9.36s, h=0.99
 next=6.93s (below the old flat minimum of 7s, impossible before), h=1.0 next=4.06s and 5.51s.
 verify3 full loop WON ok, all 5 pane chimes traced. pck 76,048 bytes, clean.
+
+## Cycle 14 - 2026-09-23 ~23:40 IST - PASS
+Built: wind gusts - the storm you feel. A soft swell telegraphs a push of wind along the
+stair (0.25-0.5 rad/s, decaying ~1/s, direction random), telegraphed by a new synthesized
+gust swell (0.9s filtered noise, soft). Gusts come more often and push harder with altitude
+(interval 11-17s at the base to 6-9s at the top, force scaled 0.4-1.0 by y/19), tying cycle
+13's escalation into gameplay. Modest next to walk speed (OMEGA 1.2), so it costs footing
+and seconds, never control. Oil economy untouched.
+Verified: gust traces on the exported build show firing with in-range force (v=-0.18 at
+h=0.38; range for that h is 0.157-0.314); verify3 full loop WON ok with gusts active, all
+5 pane chimes traced - no softlock, auto-win invariant preserved. pck 76,624 bytes, clean.

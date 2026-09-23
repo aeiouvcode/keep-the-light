@@ -45,10 +45,17 @@ func floor_at(th, y_ref):
   return best
 
 var panes = []
+var drops = []
 func pane_pos_list():
   var out = []
   for th in [1.7, 7.6, 9.5, 15.6, 18.3]:
     out.append({th=th, y=floor_at(th, 99.0) + 1.15, got=false, node=null})
+  return out
+
+func drop_pos_list():
+  var out = []
+  for th in [4.5, 12.5, 17.0]:
+    out.append({th=th, y=floor_at(th, 99.0) + 0.95, got=false, node=null})
   return out
 
 func place_radial(n, th, r, y):
@@ -149,6 +156,8 @@ func build_audio():
   SND.horn = make_wav(synth(2.4, func(t, i, n, lp):
     var env = sin(PI * float(i) / n)
     return (sin(TAU2 * 98.0 * t) * 0.5 + sin(TAU2 * 147.0 * t) * 0.22) * env * env * 0.4))
+  SND.sip = make_wav(synth(0.55, func(t, i, n, lp):
+    return (sin(TAU2 * 261.6 * t) * 0.5 + sin(TAU2 * 392.0 * t) * 0.14) * exp(-t * 7.0) * 0.5))
   SND.gutter = make_wav(synth(1.3, func(t, i, n, lp):
     return (sin(TAU2 * (150.0 - t * 90.0) * t) * 0.4 + (randf() * 2.0 - 1.0) * 0.2) * exp(-t * 2.4) * 0.6))
 var players = {}
@@ -591,6 +600,25 @@ func build_shards(root):
     root.add_child(g)
     p.node = g
     tower.shards.append(g)
+
+func build_drops(root):
+  tower.drops = []
+  var amberglow = Color(1.0, 0.72, 0.35)
+  for d in drops:
+    var g = Node3D.new()
+    var b = MeshInstance3D.new()
+    var sm = SphereMesh.new(); sm.radius = 0.11; sm.height = 0.22; sm.radial_segments = 8; sm.rings = 6
+    b.mesh = sm; b.material_override = mat_glow(amberglow, 1.5)
+    g.add_child(b)
+    var gl = Sprite3D.new()
+    gl.texture = tower.glow_tex
+    gl.modulate = Color(amberglow.r, amberglow.g, amberglow.b, 0.7)
+    gl.scale = Vector3(0.9, 0.9, 1)
+    g.add_child(gl)
+    g.position = Vector3(R_SHELL*cos(d.th), d.y, R_SHELL*sin(d.th))
+    root.add_child(g)
+    d.node = g
+    tower.drops.append(g)
 
 # ---------- keeper ----------
 func build_keeper(root):
@@ -1080,6 +1108,7 @@ func _ready():
   loop_sfx("wind", -17.0)
   loop_sfx("surf", -20.0)
   panes = pane_pos_list()
+  drops = drop_pos_list()
   # tower environment
   env_tower.background_mode = Environment.BG_COLOR
   env_tower.background_color = Color(0.047, 0.067, 0.098)
@@ -1124,6 +1153,7 @@ func _ready():
   build_tower(tower_root)
   build_lamp_room(tower_root)
   build_shards(tower_root)
+  build_drops(tower_root)
   keeper = build_keeper(tower_root)
   build_exterior()
   build_hud()
@@ -1493,6 +1523,16 @@ func _process(dt):
           sfx("chime" + str(ST.panes), -6.0)
           toast("THE LAST PANE" if ST.panes == 5 else "PANE RECOVERED - +5S OIL")
           print("[KTL] pane ", ST.panes, " chime=chime", ST.panes, " th=", snapped(ST.th,0.1), " y=", snapped(ST.y,0.1))
+      for d in drops:
+        if d.got: continue
+        var dd = Vector2(px - d.node.position.x, pz - d.node.position.z).length_squared() + pow(ST.y + 1.0 - d.node.position.y, 2)
+        if dd < 1.2:
+          d.got = true
+          d.node.visible = false
+          ST.oil = min(ST.oil + 8.0, 95.0)
+          sfx("sip", -8.0)
+          toast("OIL DROP - +8S OIL")
+          print("[KTL] drop +8 oil=", snapped(ST.oil, 0.1), " th=", snapped(d.th, 0.1))
       if ST.th >= 19.35:
         if ST.panes >= 5:
           start_relight()
@@ -1533,6 +1573,11 @@ func _process(dt):
       s2.rotation.y += dt * 1.4
       s2.position.y = panes[i2].y + sin(t_now * 2.0 + i2) * 0.10
       s2.get_child(1).modulate.a = 0.65 + sin(t_now * 3.0 + i2 * 2.0) * 0.25
+    for i3 in tower.drops.size():
+      var d3 = tower.drops[i3]
+      if not d3.visible: continue
+      d3.position.y = drops[i3].y + sin(t_now * 2.6 + i3 * 1.7) * 0.08
+      d3.get_child(1).modulate.a = 0.5 + sin(t_now * 4.2 + i3 * 2.3) * 0.25
     # notch
     var next = null
     for p3 in panes:

@@ -246,3 +246,19 @@ camera/timing) - high frame shows the full warm flame and a bright light pool on
 low frame shows a visibly smaller ember flame, shrunken glow, "THE OIL IS LOW" toast, and
 trace "flame low oil=6 scale=0.49". Eyeballed both frames side by side. verify3 full loop
 WON ok. pck 78,768 bytes.
+
+## Cycle 22 - 2026-09-24 ~04:28 IST - PASS (mechanic) / droplet visual not yet eyeballed
+Built: oil droplets - three amber glowing spheres on the stair (th 4.5, 12.5, 17.0) with a
+bobbing shimmer; each pickup gives +8s oil (cap 95), a soft low "sip" (261Hz + gentle fifth,
+exp decay, -8dB - inside the sound bar), a toast, and a trace.
+Verified: full auto runs on the exported build show all three pickups in order:
+"drop +8 oil=89.4 th=4.5", "drop +8 oil=95 th=12.5" (cap respected), "drop +8 oil=95 th=17",
+run continues to relight; verify3 WON ok. Gameplay frame captured mid-climb (pane toast,
+pip lit).
+Failed/caught: my capture script first waited for a BEGIN click that never landed (two runs
+at title, zero play traces - caught because LAST LOGS showed only title ambience); fixed by
+using the auto=1 param. Then the th-window screenshot missed twice (poll checked only the
+latest trace; swiftshader bursts skip windows) - fixed by scanning all buffered traces.
+Not verified: the droplet mesh/glow itself never landed in a frame (it sits around the curve
+from the follow camera). Mechanic is trace-verified; close-up frame is queued first for
+cycle 23. pck 80,064 bytes.

@@ -79,3 +79,13 @@ far by texture replica + geometry/depth reasoning + window-frame presence.
 Known gap (next cycle): the keeper still blocks the window's center at the
 closest approach; the moon reveals at the left of the frame. Consider
 swinging to -1.3 rad or placing a landing.
+
+## Cycle 6 - 2026-09-23 ~17:10 IST - PASS
+Built: bay-window rotation (+0.38 rad, reads architectural at gallery left), camera look-target
+blend toward the wide window inside the gallery zone (zw weight, lerp 0.55), pause chip "II"
+top-right wired to toggle_pause with a direct hit-test in _input (mouse + touch), pips nudged to -160.
+Failed then fixed: the pause chip was a GUI Button - synthetic click at its rect never fired
+(desktop mouse). Replaced with the same manual hit-test pattern the JUMP button uses; verified
+zr-pause.png shows the PAUSED card (center avg 230,220,203 vs 57,36,42 running) and resume returns.
+Verify3 full loop: WON ok. pck 73,600 bytes (clean, no screenshot bloat).
+Note: window work stops here per backlog note; next cycles = per-pane chime ladder, landing idea.

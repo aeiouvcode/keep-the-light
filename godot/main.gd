@@ -436,6 +436,8 @@ func build_tower(root):
       spill.position = Vector3(0.2, -2.62, 2.0)
       g.add_child(spill)
     place_radial(g, th4, 6.97, y4)
+    if wf > 1.0:
+      g.rotation.y += 0.38  # bay the gallery window toward the climbing approach
     root.add_child(g)
 
 func build_lamp_room(root):
@@ -727,7 +729,7 @@ func build_hud():
   var pips = HBoxContainer.new()
   pips.add_theme_constant_override("separation", 7)
   pips.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-  pips.position = Vector2(-120, 18)
+  pips.position = Vector2(-160, 18)
   pips.grow_horizontal = Control.GROW_DIRECTION_BEGIN
   ui.pips = []
   for k in 5:
@@ -745,6 +747,21 @@ func build_hud():
     pips.add_child(pp)
     ui.pips.append(inner)
   layer.add_child(pips)
+  var pauseb = Button.new()
+  pauseb.text = "II"
+  var pbs = chip_style()
+  pauseb.add_theme_stylebox_override("normal", pbs)
+  pauseb.add_theme_stylebox_override("hover", pbs)
+  pauseb.add_theme_stylebox_override("pressed", pbs)
+  pauseb.add_theme_color_override("font_color", ink())
+  pauseb.add_theme_font_size_override("font_size", 11)
+  pauseb.custom_minimum_size = Vector2(34, 26)
+  pauseb.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+  pauseb.position = Vector2(-14, 12)
+  pauseb.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+  pauseb.pressed.connect(toggle_pause)
+  layer.add_child(pauseb)
+  ui.pauseb = pauseb
   # toast
   var toastc = PanelContainer.new()
   toastc.add_theme_stylebox_override("panel", chip_style())
@@ -1081,15 +1098,23 @@ func toggle_pause():
     ST.phase = "play"
     ui.paused.visible = false
 
+func pause_chip_hit(pos):
+  var vs3 = get_viewport().get_visible_rect().size
+  return (pos - Vector2(vs3.x - 31.0, 25.0)).length() < 30.0
+
 func _input(ev):
   if ev is InputEventKey:
     keys[ev.physical_keycode] = ev.pressed
     if ev.pressed and ev.physical_keycode == KEY_SPACE: press_jump()
     if ev.pressed and ev.physical_keycode == KEY_ESCAPE: toggle_pause()
+  if ev is InputEventMouseButton and ev.pressed and pause_chip_hit(ev.position):
+    toggle_pause()
   if ev is InputEventScreenTouch:
     if ev.pressed:
       var vs = get_viewport().get_visible_rect().size
-      if ev.position.x < vs.x * 0.45 and stick_id == -1:
+      if pause_chip_hit(ev.position):
+        toggle_pause()
+      elif ev.position.x < vs.x * 0.45 and stick_id == -1:
         stick_id = ev.index
         stick_origin = ev.position
         is_touch = true
@@ -1358,8 +1383,11 @@ func _process(dt):
       ui.notch.color.a = 0
     # camera
     var desired = ST.th - 0.5 * ST.faceDir
-    if ST.phase == "play" and abs(ST.th - 6.0) < 0.85:
-      desired = ST.th - 1.05 * ST.faceDir  # ease wide at the gallery window
+    var zw = 0.0
+    if ST.phase == "play":
+      zw = 1.0 - clamp(abs(ST.th - 6.0) / 0.85, 0.0, 1.0)
+    if zw > 0.0:
+      desired = ST.th - (0.5 + 0.7 * zw) * ST.faceDir  # ease wide at the gallery window
     camTh = lerp(camTh, desired, 1.0 - pow(0.001, dt))
     camY = lerp(camY, ST.y + 2.4, 1.0 - pow(0.001, dt))
     var at_top = ST.y > 18.2
@@ -1372,7 +1400,11 @@ func _process(dt):
       cam.look_at(Vector3(0, 20.6, 0), Vector3.UP)
     else:
       cam.position = Vector3(camRcur * cos(camTh), camY, camRcur * sin(camTh))
-      cam.look_at(Vector3(cos(ST.th) * 5.2, ST.y + 1.35, sin(ST.th) * 5.2), Vector3.UP)
+      var lookt = Vector3(cos(ST.th) * 5.2, ST.y + 1.35, sin(ST.th) * 5.2)
+      if zw > 0.0:
+        var wt = Vector3(6.97 * cos(6.0), floor_at(6.0, 99.0) + 2.3, 6.97 * sin(6.0))
+        lookt = lookt.lerp(wt, zw * 0.55)
+      cam.look_at(lookt, Vector3.UP)
     if flashV > 0.4: cam.position.y += sin(t_now * 80.0) * 0.05 * flashV
     # relight cutscene
     if ST.phase == "relight":

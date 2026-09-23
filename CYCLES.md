@@ -189,3 +189,12 @@ Verified on the exported build with a pinned A/B (manual BEGIN, keeper idle, sam
 lantern pool 70.1 -> 61.7 mean brightness with gusthold; a window band changed 4.6x more
 than a plain wall band (16.5 vs 3.6 mean abs diff) from the rain slant. Stacked crops
 eyeballed - the doorway spill visibly weakens. verify3 full loop WON ok. pck 77,168 bytes.
+
+## Cycle 17 - 2026-09-24 ~01:46 IST - PASS
+Built: a distant foghorn in the storm ambience. The ending text has always promised a ship
+out in the rain; now you hear it during the climb - a rare (40-75s), soft (-18dB) synthesized
+horn, 98Hz root + 147Hz fifth with a slow swell, pitch varying 0.94-1.0. Fires on the title
+screen, during the climb, and through the relight. No assets; fully within the sound bar.
+Verified: horn trace captured on the title screen of the exported build (horn_t scheduler);
+verify3 full loop WON ok. Note for the report: the first horn comes at horn_t=24s, so a
+fast auto-win (16.2s) never hears one mid-climb - human-paced runs will. pck 77,408 bytes.

@@ -140,6 +140,11 @@ func build_audio():
   SND.drone.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.drone.loop_end = int(2.6 * SR)
   SND.bell = make_wav(synth(3.2, func(t, i, n, lp):
     return (sin(TAU2 * 659.0 * t) * 0.4 + sin(TAU2 * 988.0 * t) * 0.18) * exp(-t * 1.1) * 0.55))
+  # foghorn: the ship out in the storm - low root + fifth, slow swell, soft.
+  # heard during the climb; the same ship that sets her course for home at the end.
+  SND.horn = make_wav(synth(2.4, func(t, i, n, lp):
+    var env = sin(PI * float(i) / n)
+    return (sin(TAU2 * 98.0 * t) * 0.5 + sin(TAU2 * 147.0 * t) * 0.22) * env * env * 0.4))
   SND.gutter = make_wav(synth(1.3, func(t, i, n, lp):
     return (sin(TAU2 * (150.0 - t * 90.0) * t) * 0.4 + (randf() * 2.0 - 1.0) * 0.2) * exp(-t * 2.4) * 0.6))
 var players = {}
@@ -1035,6 +1040,7 @@ var toast_t = 0.0
 var thunder_t = 7.0
 var gust_t = 6.0
 var gust_vis = 0.0
+var horn_t = 24.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
 var thunder_pitch = 1.0
@@ -1351,6 +1357,12 @@ func _process(dt):
     sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
     gust_vis = 1.0
     print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
+  # distant foghorn, rare and soft - the world beyond the tower
+  horn_t -= dt
+  if horn_t <= 0 and ST.phase in ["title", "play", "relight"]:
+    horn_t = randf_range(40.0, 75.0)
+    sfx("horn", -18.0, randf_range(0.94, 1.0))
+    print("[KTL] horn")
   if thunder_pending > 0.0:
     thunder_pending -= dt
     if thunder_pending <= 0.0:

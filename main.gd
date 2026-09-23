@@ -27,6 +27,8 @@ var FAST = false
 var GUSTHOLD = false
 var DOORSHUT = false
 var DOOROPEN = false
+var DROPTEST = false
+var dropped = false
 var START_OIL = 80.0
 
 func surf_y(s, th):
@@ -1066,6 +1068,7 @@ func _ready():
     GUSTHOLD = "gusthold=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
+    DROPTEST = "droptest=1" in q
   else:
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
@@ -1325,6 +1328,7 @@ func fmt_time(t):
 
 func auto_dir():
   if ST.phase != "play": return 0.0
+  if ST.y < 0.6 and ST.th > 0.25 and floor_at(ST.th, ST.y) < 0.05: return -1.0  # fell to the entrance floor - walk back to the stair base
   var target = 20.4
   for p in panes:
     if not p.got:
@@ -1447,6 +1451,9 @@ func _process(dt):
       if ST.vy <= 0 and ST.y <= fl2:
         ST.y = fl2; ST.vy = 0.0; ST.grounded = true
         sfx("land", -10.0)
+        if fl2 < 0.5 and ST.th > 1.5:
+          toast("THE STAIR IS BEHIND YOU")
+          print("[KTL] fell th=", snapped(ST.th, 0.1))
     if jumpBuf > 0:
       jumpBuf -= dt
       if ST.grounded or ST.coyote > 0:
@@ -1455,6 +1462,9 @@ func _process(dt):
     if ST.phase == "play":
       ST.elapsed += dt
       ST.oil -= dt
+      if DROPTEST and not dropped and ST.elapsed > 1.0:  # debug: drop the keeper into the stair gap
+        dropped = true
+        ST.th = 10.15; ST.y = 12.0; ST.vy = 0.0; ST.grounded = false
       if ST.oil < 16 and not ST.lowWarned:
         ST.lowWarned = true
         toast("THE OIL IS LOW")

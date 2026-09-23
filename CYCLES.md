@@ -226,3 +226,12 @@ to the entrance floor the same way; gust immunity covers the wind case only.
 Verified: gust traces show lean sign flips with gust direction and rain_db=-11 at fire.
 The lean is intentionally a whisper (0.3 rad on a small lamp) - noted honestly that it is
 at the edge of visibility. pck 77,968 bytes, clean.
+
+## Cycle 20 - cascade-fall fix (the spiral stair gap trap)
+Grade: PASS (after two failed fix attempts, caught by the droptest)
+- Confirmed by code read: floor_at defaults to 0.0 and spiral segments never overlap in th, so a fall into a th-gap (e.g. th 10.0-10.3) landed the keeper at y=0 where it could never regain the stair - a softlock.
+- Fix: auto_dir recovery - when on the ground with no stair surface within stepping reach (floor_at(th, y) < 0.05) and past the stair base (th > 0.25), auto-walk back (dir=-1) until the stair base is mountable; grounded follow then steps the keeper up and normal targeting resumes.
+- UX: landing a real fall fires a 'fell' trace + toast "THE STAIR IS BEHIND YOU" so the player understands the walk-back.
+- New param: droptest=1 teleports the keeper to (th=10.15, y=12) at t>1s to exercise the fall/recovery path headlessly.
+- Verification story (honest): attempt 1 (exit at th>1.5) limit-cycled at th 1.35<->1.67 forever, oil draining to fail - the exit threshold sat outside the stair-mount window. Attempt 2 (floor probe at y+0.3) walked back correctly but disengaged at th~0.65, just above the step-up reach (surf 0.65 > y+0.35), and oscillated 0.64<->0.67 forever. Attempt 3 probes floor_at(th, ST.y): disengages only when the stair base is actually step-up-able (th<=~0.35). Droptest run: fall at th=9.61 y=8.76 -> walk back to y=0 -> mount stair at th=0.94 y=1.11 -> panes 2-5 -> ending -> won:true. Also note: the test script's printed-log filter silently dropped the 'fell' trace; behavior was verified via th/y traces instead.
+- verify3: WON ok. pck 78,448 bytes.

@@ -18,6 +18,8 @@ const SURF = [
   {a0=19.2,a1=1e9,  y0=19.0, y1=19.0, gap=false},
 ]
 const MISSING = [1,3,5,8,10]
+# sea-glass hues: one identity per pane (shard glow, HUD pip silhouette, fitted lens facet)
+const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.55,0.60), Color(0.65,0.62,0.95), Color(0.62,0.90,0.60)]
 var AUTO = false
 var FAST = false
 
@@ -439,7 +441,10 @@ func build_lamp_room(root):
     var p = box(Vector3(0.60, 1.42, 0.045), lensmat.duplicate())
     p.position = Vector3(1.24*cos(a3 + TAU2/24.0), 2.1, 1.24*sin(a3 + TAU2/24.0))
     p.rotation.y = -a3 - TAU2/24.0 - PI/2.0
-    if k in MISSING: p.visible = false
+    if k in MISSING:
+      p.visible = false
+      var fh = PANE_COLORS[MISSING.find(k) % PANE_COLORS.size()]
+      p.material_override.albedo_color = Color(fh.r, fh.g, fh.b, 0.6)
     lr.add_child(p)
     tower.lens_panes.append(p)
   var core = MeshInstance3D.new()
@@ -493,15 +498,18 @@ func build_lamp_room(root):
 func build_shards(root):
   tower.shards = []
   var shardmat = mat_glow(Color(1.0, 0.96, 0.85), 1.2)
+  var pi = 0
   for p in panes:
+    var hue = PANE_COLORS[pi % PANE_COLORS.size()]
     var g = Node3D.new()
     var pr = MeshInstance3D.new()
     var pm = PrismMesh.new(); pm.size = Vector3(0.5, 0.85, 0.5)
-    pr.mesh = pm; pr.material_override = shardmat
+    pr.mesh = pm; pr.material_override = mat_glow(hue, 1.2)
     g.add_child(pr)
     var gl = Sprite3D.new()
     gl.texture = tower.glow_tex
-    gl.modulate = Color(1.0, 0.91, 0.73, 0.85)
+    gl.modulate = Color(hue.r, hue.g, hue.b, 0.85)
+    pi += 1
     gl.scale = Vector3(1.7, 1.7, 1)
     g.add_child(gl)
     g.position = Vector3(R_SHELL*cos(p.th), p.y, R_SHELL*sin(p.th))
@@ -675,7 +683,8 @@ func build_hud():
     ps.bg_color = Color(0.957,0.918,0.847,0.40)
     pp.add_theme_stylebox_override("panel", ps)
     var inner = ColorRect.new()
-    inner.color = Color(0,0,0,0)
+    var hc = PANE_COLORS[k % PANE_COLORS.size()]
+    inner.color = Color(hc.r, hc.g, hc.b, 0.22)
     inner.custom_minimum_size = Vector2(10,10)
     pp.add_child(inner)
     pp.pivot_offset = Vector2(8,8)
@@ -1043,7 +1052,8 @@ func reset_run():
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
-    ui.pips[i].color = Color(0,0,0,0)
+    var hc2 = PANE_COLORS[i % PANE_COLORS.size()]
+    ui.pips[i].color = Color(hc2.r, hc2.g, hc2.b, 0.22)
   for k in tower.lens_panes.size():
     tower.lens_panes[k].visible = not (k in MISSING)
     tower.lens_panes[k].material_override.emission_enabled = false
@@ -1224,7 +1234,7 @@ func _process(dt):
           p.node.visible = false
           ST.panes += 1
           ST.oil = min(ST.oil + 5.0, 95.0)
-          ui.pips[i].color = Color(0.541,0.353,0.118)
+          ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
           sfx("chime" if ST.panes < 3 else ("chime2" if ST.panes < 5 else "chime3"), -6.0)
           toast("THE LAST PANE" if ST.panes == 5 else "PANE RECOVERED - +5S OIL")
           print("[KTL] pane ", ST.panes, " th=", snapped(ST.th,0.1), " y=", snapped(ST.y,0.1))

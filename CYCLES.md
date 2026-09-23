@@ -26,10 +26,16 @@ Fixed this cycle (cycle 2, sound + polish):
 - Footstep highs softened: noise cut 0.16->0.15 amp and blended 60/40 into
   the lowpassed tail; the 75Hz body thump unchanged.
 
+## Cycle 3 (shipped)
+Pane identity: each of the 5 panes now owns a sea-glass hue
+(amber/teal/rose/violet/green) across its shard glow, its HUD pip
+(silhouette at 22% alpha until collected, full hue on pickup) and the
+lens facet it refits into during the relight. Verified on phone-portrait
+frame: five distinct diamonds read clearly at 390px.
+
 Next cycle candidates (in priority order):
-1. Distinct tint + pickup chime per pane (chime/chime2/chime3 exist, reuse
-   by index), HUD shows pane silhouettes filling.
-2. Level-2 balcony vista: a door gap in the tower wall at the second landing
+1. Level-2 balcony vista: a door gap in the tower wall at the second landing
    framing moon + sea (cheap: wall segment skip + railing).
-3. Title-screen motion: slow camera drift on the stair column.
-4. Pause menu with controls recap (Esc / touch button).
+2. Title-screen motion: slow camera drift on the stair column.
+3. Pause menu with controls recap (Esc / touch button).
+4. Per-pane pickup chime ladder tied to hue order (currently count-based).

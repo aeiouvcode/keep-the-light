@@ -105,15 +105,16 @@ func build_audio():
     var env = exp(-t * 1.6)
     var r = (randf() * 2.0 - 1.0)
     return (r * 0.35 + lp * 1.4) * env * 0.45))
-  SND.chime = make_wav(synth(1.4, func(t, i, n, lp):
-    var f = 440.0
-    return (sin(TAU2 * f * t) * 0.5 + sin(TAU2 * f * 2.76 * t) * 0.14) * exp(-t * 2.6) * 0.7))
-  SND.chime2 = make_wav(synth(1.4, func(t, i, n, lp):
-    var f = 587.33
-    return (sin(TAU2 * f * t) * 0.5 + sin(TAU2 * f * 2.76 * t) * 0.14) * exp(-t * 2.6) * 0.7))
-  SND.chime3 = make_wav(synth(1.6, func(t, i, n, lp):
-    var f = 783.99
-    return (sin(TAU2 * f * t) * 0.5 + sin(TAU2 * f * 2.0 * t) * 0.2 + sin(TAU2 * f * 2.76 * t) * 0.12) * exp(-t * 2.2) * 0.7))
+  # per-pane chime ladder: A-C-D-E-G pentatonic, ascending with each pane.
+  # upper partials shrink as pitch rises so high notes stay soft on phone speakers.
+  var ladder = [[440.0, 0.15], [523.25, 0.13], [587.33, 0.11], [659.25, 0.09], [783.99, 0.11]]
+  for li in ladder.size():
+    var f = ladder[li][0]; var br = ladder[li][1]
+    var tail = 2.4 if li < 4 else 2.0
+    var dur = 1.4 if li < 4 else 1.7
+    SND["chime" + str(li + 1)] = make_wav(synth(dur, func(t, i, n, lp):
+      var body = sin(TAU2 * f * t) * 0.5 + sin(TAU2 * f * 2.0 * t) * br * 0.7 + sin(TAU2 * f * 2.76 * t) * br
+      return body * exp(-t * tail) * 0.7))
   SND.clink = make_wav(synth(0.3, func(t, i, n, lp):
     return (sin(TAU2 * 1700.0 * t) * 0.3 + sin(TAU2 * 2550.0 * t) * 0.15) * exp(-t * 18.0) * 0.6))
   SND.jump = make_wav(synth(0.22, func(t, i, n, lp):
@@ -1330,9 +1331,9 @@ func _process(dt):
           ST.panes += 1
           ST.oil = min(ST.oil + 5.0, 95.0)
           ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
-          sfx("chime" if ST.panes < 3 else ("chime2" if ST.panes < 5 else "chime3"), -6.0)
+          sfx("chime" + str(ST.panes), -6.0)
           toast("THE LAST PANE" if ST.panes == 5 else "PANE RECOVERED - +5S OIL")
-          print("[KTL] pane ", ST.panes, " th=", snapped(ST.th,0.1), " y=", snapped(ST.y,0.1))
+          print("[KTL] pane ", ST.panes, " chime=chime", ST.panes, " th=", snapped(ST.th,0.1), " y=", snapped(ST.y,0.1))
       if ST.th >= 19.35:
         if ST.panes >= 5:
           start_relight()

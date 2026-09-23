@@ -99,3 +99,13 @@ build_audio, played at -6dB, no new assets. Pickup trace now logs the chime name
 Verification: verify3 full loop WON ok; trace shows chime1..chime5 fired in order at panes 1-5.
 Audio itself not headless-verifiable; design follows the soft/low synthesized bar (sine bodies,
 fast-decaying partials, no noise bursts).
+
+## Cycle 8 - 2026-09-23 ~18:10 IST - PASS
+Built: the window landing. The climbing segment 4.0-7.2 is split into climb / flat / climb with a
+level stone landing at th 5.65-6.35 (y 6.175) right at the gallery vista window. Steps, railings,
+and keeper physics all derive from SURF, so one data change produced geometry + walkable physics.
+The keeper now crosses the window without rising - a natural rest point where the camera gaze
+blend (cycle 6) holds the moonlit vista framed. Closes the cycle-5 known gap ("placing a landing").
+Verified: eyeballed landing frames zb20/zb21 (flat platform reads, railing follows, keeper level);
+verify3 full loop WON ok with chime ladder intact; pause chip still works (pixel check in vp2 run).
+pck 73,648 bytes, clean.

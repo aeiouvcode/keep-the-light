@@ -8,7 +8,9 @@ const GAP = [10.0, 10.3]
 const SURF = [
   {a0=0.0, a1=3.2,  y0=0.0,  y1=3.8,  gap=false},
   {a0=3.2, a1=4.0,  y0=3.8,  y1=3.8,  gap=false},
-  {a0=4.0, a1=7.2,  y0=3.8,  y1=7.6,  gap=false},
+  {a0=4.0, a1=5.65, y0=3.8,  y1=6.175, gap=false},
+  {a0=5.65, a1=6.35, y0=6.175, y1=6.175, gap=false},  # the window landing: a flat rest at the gallery vista
+  {a0=6.35, a1=7.2, y0=6.175, y1=7.6,  gap=false},
   {a0=7.2, a1=8.0,  y0=7.6,  y1=7.6,  gap=false},
   {a0=8.0, a1=11.2, y0=7.6,  y1=11.4, gap=true},
   {a0=11.2,a1=12.0, y0=11.4, y1=11.4, gap=false},

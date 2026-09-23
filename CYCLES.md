@@ -235,3 +235,14 @@ Grade: PASS (after two failed fix attempts, caught by the droptest)
 - New param: droptest=1 teleports the keeper to (th=10.15, y=12) at t>1s to exercise the fall/recovery path headlessly.
 - Verification story (honest): attempt 1 (exit at th>1.5) limit-cycled at th 1.35<->1.67 forever, oil draining to fail - the exit threshold sat outside the stair-mount window. Attempt 2 (floor probe at y+0.3) walked back correctly but disengaged at th~0.65, just above the step-up reach (surf 0.65 > y+0.35), and oscillated 0.64<->0.67 forever. Attempt 3 probes floor_at(th, ST.y): disengages only when the stair base is actually step-up-able (th<=~0.35). Droptest run: fall at th=9.61 y=8.76 -> walk back to y=0 -> mount stair at th=0.94 y=1.11 -> panes 2-5 -> ending -> won:true. Also note: the test script's printed-log filter silently dropped the 'fell' trace; behavior was verified via th/y traces instead.
 - verify3: WON ok. pck 78,448 bytes.
+
+## Cycle 21 - 2026-09-24 ~03:42 IST - PASS
+Built: the lantern now reads the oil level. The flame mesh scales with oil (0.5x at empty
+to 1.0x full, flicker-coupled), its emission lerps from warm cream (1.0,0.85,0.63) to ember
+orange (1.0,0.42,0.22) as oil drains, and the glow sprite shrinks too. A one-shot
+"[KTL] flame low" trace fires when oil crosses 20%.
+Verified: pinned A/B on the exported build (manual BEGIN, startoil=80 vs startoil=6, same
+camera/timing) - high frame shows the full warm flame and a bright light pool on the stair,
+low frame shows a visibly smaller ember flame, shrunken glow, "THE OIL IS LOW" toast, and
+trace "flame low oil=6 scale=0.49". Eyeballed both frames side by side. verify3 full loop
+WON ok. pck 78,768 bytes.

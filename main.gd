@@ -645,7 +645,7 @@ func build_keeper(root):
   lampg.add_child(lglow)
   g.add_child(lampg)
   root.add_child(g)
-  return {g=g, legs=legs, armL=armL, lamp=lampg, lglow=lglow}
+  return {g=g, legs=legs, armL=armL, lamp=lampg, lglow=lglow, flame=flame}
 
 # ---------- HUD ----------
 var ui = {}
@@ -1046,6 +1046,7 @@ var toast_t = 0.0
 var thunder_t = 7.0
 var gust_t = 6.0
 var gust_vis = 0.0
+var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
 var thunder_pending = -1.0
@@ -1215,7 +1216,7 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
@@ -1518,6 +1519,13 @@ func _process(dt):
     var flick = 1.0 + sin(t_now*13.0)*0.06 + sin(t_now*31.0)*0.04 + (sin(t_now*47.0)*0.15 if oil_frac < 0.2 else 0.0)
     lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick * (1.0 - 0.3 * gust_vis)
     keeper.lglow.modulate.a = 0.5 + 0.4 * oil_frac * flick
+    var fsc = (0.5 + 0.5 * oil_frac) * (1.0 + (flick - 1.0) * 0.7)
+    keeper.flame.scale = Vector3(fsc, fsc, fsc)
+    keeper.flame.material_override.emission = Color(1.0, 0.85, 0.63).lerp(Color(1.0, 0.42, 0.22), 1.0 - oil_frac)
+    keeper.lglow.scale = Vector3(1.1, 1.1, 1) * (0.6 + 0.4 * oil_frac)
+    if oil_frac < 0.2 and not flameLow and ST.phase == "play":
+      flameLow = true
+      print("[KTL] flame low oil=", snapped(ST.oil, 0.1), " scale=", snapped(fsc, 0.01))
     # shards shimmer
     for i2 in tower.shards.size():
       var s2 = tower.shards[i2]

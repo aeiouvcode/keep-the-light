@@ -25,6 +25,8 @@ const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.5
 var AUTO = false
 var FAST = false
 var GUSTHOLD = false
+var SHAKEHOLD = false
+var shake_cur = 0.0
 var DOORSHUT = false
 var DOOROPEN = false
 var DROPTEST = false
@@ -1095,6 +1097,7 @@ func _ready():
     var mo = q.find("startoil=")
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
     GUSTHOLD = "gusthold=1" in q
+    SHAKEHOLD = "shakehold=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1396,7 +1399,8 @@ func _process(dt):
     thunder_pending = 0.5 + dist * 1.7
     thunder_vol = -8.0 - dist * 6.0
     thunder_pitch = 1.05 - dist * 0.2
-    print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01))
+    shake_cur = max(shake_cur, 1.0 - dist)
+    print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01), " shake=", snapped(1.0 - dist, 0.01))
   if players.has("wind"):
     players.wind.volume_db = -17.0 + 4.0 * storm_h
   if players.has("rain"):
@@ -1624,6 +1628,11 @@ func _process(dt):
         lookt = lookt.lerp(wt, zw * 0.55)
       cam.look_at(lookt, Vector3.UP)
     if flashV > 0.4: cam.position.y += sin(t_now * 80.0) * 0.05 * flashV
+    if SHAKEHOLD: shake_cur = 0.9  # debug: pin the shake for capture
+    shake_cur *= pow(0.08, dt)
+    var so = 0.25 * shake_cur * shake_cur
+    if SHAKEHOLD: cam.position += Vector3(0.18, -0.12, 0)
+    elif so > 0.001: cam.position += Vector3((randf() - 0.5) * 2.0 * so, (randf() - 0.5) * 2.0 * so, 0.0)
     # relight cutscene
     if ST.phase == "relight":
       ST.relightT += dt

@@ -274,3 +274,14 @@ Verified: beats 1-2 traced on the normal-speed run, all three traced in order on
 (captured on the pre-beats build - droplet visuals unchanged between builds, beats are
 HUD-only). verify3 WON ok on the shipped build. One flaky verify3 run (no output) while two
 headless Chromes contended; rerun clean. pck 80,176 bytes.
+
+## Cycle 24 - 2026-09-24 ~05:17 IST - PASS
+Built: distance-scaled thunder shake. Each strike arms shake_cur = 1 - dist (near = big,
+far = whisper), decaying fast (pow(0.08, dt)); applied as 2D positional noise
+(0.25 * shake^2) after the existing flash jitter. The lightning trace now prints shake=.
+Debug param shakehold=1 pins a fixed offset (0.18, -0.12) for capture.
+Verified: fast auto run traces show far strikes shake=0.47 / 0.49 and a near strike at full
+storm shake=0.92 (delay 0.63) - scaling reads correctly. Pinned A/B frames at the same
+climb moment (sh-calm.png vs sh-hold.png) eyeballed: the held frame's composition is
+visibly displaced (keeper shifted center, left window cut off, rail raised). verify3
+WON ok. pck 80,512 bytes.

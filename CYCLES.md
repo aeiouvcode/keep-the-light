@@ -167,3 +167,15 @@ and seconds, never control. Oil economy untouched.
 Verified: gust traces on the exported build show firing with in-range force (v=-0.18 at
 h=0.38; range for that h is 0.157-0.314); verify3 full loop WON ok with gusts active, all
 5 pane chimes traced - no softlock, auto-win invariant preserved. pck 76,624 bytes, clean.
+
+## Cycle 15 - 2026-09-24 ~01:03 IST - PASS
+Built: outcome honesty on the end cards. The win card now celebrates a record ("THE CLIMB
+TOOK M:SS - A NEW BEST") or shows the standing best ("- BEST M:SS"), completing the loop
+cycle 12 started. The fail card owns up to how close the climb got ("THE OIL RAN OUT ON THE
+STAIR - N OF 5 PANES LIT") instead of a static line. New traces: won ... is_best=bool,
+fail panes=N.
+Verified on the exported build: fresh-profile win printed is_best=true and the card showed
+"A NEW BEST" (eyeballed crop); a seeded-best win (localStorage primed to 0:05) printed
+is_best=false and showed "BEST 0:05"; a startoil=8 fail printed fail panes=0 and the card
+showed "0 OF 5 PANES LIT" over the properly dark stair. verify3 full loop WON ok.
+pck 76,928 bytes, clean.

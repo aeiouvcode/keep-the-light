@@ -1254,8 +1254,13 @@ func fail_run():
   await get_tree().create_timer(1.3).timeout
   lantern.visible = false
   keeper.lglow.modulate.a = 0.0
+  # the fail card owns up to how close the climb got
+  var flabels = []
+  _collect_labels(ui.fail, flabels)
+  if flabels.size() > 1:
+    flabels[1].text = "THE OIL RAN OUT ON THE STAIR - " + str(ST.panes) + " OF 5 PANES LIT"
   if ST.phase == "fail": ui.fail.visible = true
-  print("[KTL] fail")
+  print("[KTL] fail panes=", ST.panes)
 
 func best_time():
   if not OS.has_feature("web"): return 0.0
@@ -1265,16 +1270,22 @@ func best_time():
 func win_run():
   ST.phase = "won"
   var prev = best_time()
-  if OS.has_feature("web") and (prev <= 0.0 or ST.elapsed < prev):
+  var is_best = OS.has_feature("web") and (prev <= 0.0 or ST.elapsed < prev)
+  if is_best:
     JavaScriptBridge.eval("localStorage.setItem('ktl_best','" + str(ST.elapsed) + "')")
     print("[KTL] new best ", fmt_time(ST.elapsed))
   var sub = ui.end.find_child("", true, false)
   var labels = []
   _collect_labels(ui.end, labels)
   if labels.size() > 1:
-    labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - 5 PANES"
+    if is_best:
+      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - A NEW BEST"
+    elif prev > 0.0:
+      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - BEST " + fmt_time(prev)
+    else:
+      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - 5 PANES"
   ui.end.visible = true
-  print("[KTL] won elapsed=", ST.elapsed)
+  print("[KTL] won elapsed=", ST.elapsed, " is_best=", is_best)
 
 func _collect_labels(n, out):
   for c in n.get_children():

@@ -24,6 +24,7 @@ const MISSING = [1,3,5,8,10]
 const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.55,0.60), Color(0.65,0.62,0.95), Color(0.62,0.90,0.60)]
 var AUTO = false
 var FAST = false
+var START_OIL = 80.0
 
 func surf_y(s, th):
   var t = clamp((th - s.a0) / (s.a1 - s.a0), 0.0, 1.0)
@@ -1042,6 +1043,8 @@ func _ready():
     var q = str(JavaScriptBridge.eval("window.location.search"))
     AUTO = "auto=1" in q
     FAST = "fast=1" in q
+    var mo = q.find("startoil=")
+    if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
   else:
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
@@ -1170,7 +1173,7 @@ func toast(msg):
 
 func reset_run():
   ST.phase = "play"; ST.th = 0.0; ST.y = 0.0; ST.vy = 0.0; ST.grounded = true
-  ST.oil = 80.0; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   for i in panes.size():
     panes[i].got = false
@@ -1227,7 +1230,16 @@ func fail_run():
   sfx("gutter", -4.0)
   var tw = create_tween()
   tw.tween_property(ui.dim, "color:a", 0.92, 1.2)
+  # the lamp gutters out in visible throes before the dark takes the stair
+  var ltw = create_tween()
+  ltw.tween_property(lantern, "light_energy", 0.3, 0.3)
+  ltw.tween_property(lantern, "light_energy", 1.1, 0.07)
+  ltw.tween_property(lantern, "light_energy", 0.12, 0.22)
+  ltw.tween_property(lantern, "light_energy", 0.65, 0.06)
+  ltw.tween_property(lantern, "light_energy", 0.0, 0.45)
   await get_tree().create_timer(1.3).timeout
+  lantern.visible = false
+  keeper.lglow.modulate.a = 0.0
   if ST.phase == "fail": ui.fail.visible = true
   print("[KTL] fail")
 
@@ -1358,10 +1370,13 @@ func _process(dt):
         ST.lowWarned = true
         toast("THE OIL IS LOW")
         ui.oilfill.color = Color(0.69, 0.227, 0.133)
+        sfx("gutter", -15.0, 1.35)  # a quiet cough from the lamp
+        print("[KTL] lowoil")
       if ST.oil <= 0:
         ST.oil = 0
         fail_run()
     ui.oilfill.anchor_right = clamp(ST.oil / 80.0, 0.0, 1.0)
+    ui.oilfill.modulate.a = 0.55 + 0.45 * (0.5 + 0.5 * sin(t_now * 6.0)) if ST.oil < 16.0 else 1.0
     # pane pickup
     if ST.phase == "play":
       var px = R_SHELL * cos(ST.th); var pz = R_SHELL * sin(ST.th)

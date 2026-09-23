@@ -128,3 +128,13 @@ Verification: verify3 full loop WON ok, chime ladder intact; f-ending.png eyebal
 beam/rain/reflection compose. Note: auto-mode playthrough does not reach the ending in real time
 under swiftshader (game-time vs wall-clock); verify3 fast mode is the ending verification path.
 pck 74,800 bytes, clean.
+
+## Cycle 11 - 2026-09-23 ~19:52 IST - PASS
+Built: fail-state polish. The lamp now visibly gutters out in throes (light energy staggers
+0.3/1.1/0.12/0.65/0 over ~1.1s) before the dark takes the stair, instead of staying lit under the
+dim overlay; the lamp glow sprite dies with it. Low-oil warning (<16) now also plays a quiet
+high-pitched cough (gutter sample at -15dB, pitch 1.35) and pulses the red oil bar. Added a
+startoil=N debug param (5-80) so the fail path is testable headlessly.
+Verified: dedicated fail run begin -> lowoil -> fail traces in order; fail-card frame shows the
+card over a properly dark stair (lantern out). verify3 full loop WON ok, chime ladder intact.
+pck 75,296 bytes, clean.

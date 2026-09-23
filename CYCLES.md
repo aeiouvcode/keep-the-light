@@ -210,3 +210,19 @@ Verified: pinned A/B on the exported build (idle keeper, same camera) - ajar fra
 the slab swung off its frame with a dark gap, shut frame sits flush (eyeballed side by
 side); normal-flow trace "begin -> door shut" captured; verify3 full loop WON ok.
 pck 77,856 bytes, clean.
+
+## Cycle 19 - 2026-09-24 ~02:52 IST - PASS (with a caught fairness fix)
+Built: gust feel - the lamp flame leans with the wind (rotation.z -= gust_dir * gust_vis
+* 0.3, direction-true) and the rain bed swells +2dB under a gust (to -11dB, inside the
+sound bar). Gust traces now print lean and rain_db.
+Caught and fixed: one verification run (pre-fix physics) did NOT win - the keeper climbed
+to h=0.38, then sat at h=0 for ~7 gust intervals. Hypothesis: an airborne gust pushed the
+keeper mid-jump into a stair gap and it fell to the entrance floor, where the auto walker
+cannot regain the stair. Wind knocking you out of a jump is unfair in this game's design
+("costs footing and seconds, never control"), so gusts now apply only while grounded.
+Post-fix: 3/3 auto runs won with no height regression; verify3 full loop WON ok.
+Known suspect (pre-existing, unproven): a badly-jumped human fall into a gap may cascade
+to the entrance floor the same way; gust immunity covers the wind case only.
+Verified: gust traces show lean sign flips with gust direction and rain_db=-11 at fire.
+The lean is intentionally a whisper (0.3 rad on a small lamp) - noted honestly that it is
+at the edge of visibility. pck 77,968 bytes, clean.

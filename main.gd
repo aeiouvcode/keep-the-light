@@ -1045,6 +1045,7 @@ var thunder_t = 7.0
 var gust_t = 6.0
 var gust_vis = 0.0
 var horn_t = 24.0
+var gust_dir = 1.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
 var thunder_pitch = 1.0
@@ -1363,6 +1364,8 @@ func _process(dt):
     print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01))
   if players.has("wind"):
     players.wind.volume_db = -17.0 + 4.0 * storm_h
+  if players.has("rain"):
+    players.rain.volume_db = -13.0 + 2.0 * gust_vis
   # wind gusts push the keeper along the stair - the storm you feel, stronger
   # with altitude. Modest next to walk speed (OMEGA 1.2), so it costs footing
   # and seconds, never control.
@@ -1370,9 +1373,10 @@ func _process(dt):
   if gust_t <= 0 and ST.phase == "play":
     gust_t = randf_range(lerp(11.0, 6.0, storm_h), lerp(17.0, 9.0, storm_h))
     ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * (1.0 if randf() < 0.5 else -1.0)
+    gust_dir = sign(ST.gust_v)
     sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
     gust_vis = 1.0
-    print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
+    print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01), " lean=", snapped(-gust_dir * 1.0 * 0.3, 0.01), " rain_db=", -13.0 + 2.0 * 1.0)
   # distant foghorn, rare and soft - the world beyond the tower
   horn_t -= dt
   if horn_t <= 0 and ST.phase in ["title", "play", "relight"]:
@@ -1419,7 +1423,7 @@ func _process(dt):
       if abs(stick_x) > 0.15: dir = stick_x
       if AUTO: dir = auto_dir()
     var OMEGA = 1.2
-    var gv = ST.gust_v if ST.phase == "play" else 0.0
+    var gv = ST.gust_v if (ST.phase == "play" and ST.grounded) else 0.0  # wind pushes footing, never flight
     ST.th = max(0.0, ST.th + (dir * OMEGA + gv) * dt)
     ST.gust_v = move_toward(ST.gust_v, 0.0, dt * 0.9)
     if dir != 0:
@@ -1497,7 +1501,7 @@ func _process(dt):
     keeper.legs[1].rotation.x = -sw
     keeper.armL.rotation.x = -sin(ST.walkPh) * 0.4 * (1.0 if dir != 0 else 0.0)
     keeper.lamp.position.y = 0.72 + sin(ST.walkPh * 0.5) * 0.05
-    keeper.lamp.rotation.z = sin(ST.walkPh * 0.5 + 1.0) * 0.18 * sign(ST.faceDir)
+    keeper.lamp.rotation.z = sin(ST.walkPh * 0.5 + 1.0) * 0.18 * sign(ST.faceDir) - gust_dir * gust_vis * 0.3
     var lp = keeper.lamp.global_position
     lantern.global_position = lp
     var oil_frac = clamp(ST.oil / 80.0, 0.0, 1.0)

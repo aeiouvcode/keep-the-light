@@ -214,6 +214,9 @@ func set_ext_lit(lit):
   EXT.beams.visible = lit
 
 var players = {}
+var base_rainv = -13.0
+var base_surfv = -20.0
+var win_swell_prev = 0.0
 func sfx(name, vol_db = 0.0, pitch = 1.0):
   if not SND.has(name): return
   var p = players.get(name)
@@ -269,6 +272,8 @@ func apply_storm_audio():
   if players.get("wind"):
     players["wind"].pitch_scale = windp
     players["wind"].volume_db = windv
+  base_rainv = rainv
+  base_surfv = surfv
   if players.get("rain"):
     players["rain"].volume_db = rainv
   if players.get("surf"):
@@ -517,8 +522,10 @@ func build_tower(root):
         th3 += (sp[1]-sp[0]) / 14.0
   # windows
   tower.win_rain = []
+  tower.win_pos = []
   for th4 in [1.6, 6.0, 10.9, 15.0]:
     var y4 = floor_at(th4, 99.0) + 2.7
+    tower.win_pos.append([th4, y4])
     var wf = 1.9 if abs(th4 - 6.0) < 0.01 else 1.0
     var g = Node3D.new()
     var fr = mat_lam(Color(0.13,0.145,0.18))
@@ -2012,6 +2019,20 @@ func _process(dt):
       fm2.albedo_color.a = min(flashV, 1.0) * 0.7
   # window rain scroll
   gust_vis *= pow(0.1, dt)
+  # the storm breathes through the open windows: rain and surf swell as the keeper passes
+  if ST.phase == "play" and tower.has("win_pos"):
+    var swell = 0.0
+    for wp in tower.win_pos:
+      var dth = abs(ST.th - wp[0]) * R_SHELL
+      var dy = abs((ST.y + 1.2) - wp[1])
+      var dd = sqrt(dth * dth + dy * dy)
+      swell = max(swell, clampf(1.0 - dd / 5.0, 0.0, 1.0))
+    swell = swell * swell * 4.0
+    if players.get("rain"): players["rain"].volume_db = base_rainv + swell
+    if players.get("surf"): players["surf"].volume_db = base_surfv + swell * 0.7
+    if abs(swell - win_swell_prev) > 0.5:
+      win_swell_prev = swell
+      print("[KTL] window swell +", snapped(swell, 0.1), " dB th=", snapped(ST.th, 0.1))
   if GUSTHOLD and ST.phase == "play": gust_vis = 1.0  # debug: hold the gust visuals for capture
   for m in tower.win_rain:
     m.uv1_offset.y += dt * 0.9 * (1.0 + 1.4 * gust_vis)
@@ -2025,6 +2046,10 @@ func _process(dt):
     if toast_t <= 0: ui.toast.modulate.a = 0
 
   if ST.phase == "title":
+    if win_swell_prev != 0.0:
+      win_swell_prev = 0.0
+      if players.get("rain"): players["rain"].volume_db = base_rainv
+      if players.get("surf"): players["surf"].volume_db = base_surfv
     title_t += dt
     if title_t - title_audio_t > 0.5:
       title_audio_t = title_t

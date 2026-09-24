@@ -1076,6 +1076,12 @@ func build_hud():
   ui.title = mk_card("KEEP THE LIGHT", "A STORM-NIGHT ERRAND",
     "The lamp is out. Five lens panes lie scattered on the stair. Climb, gather them, and relight the light before the oil is gone.", b1)
   layer.add_child(ui.title)
+  var tbest = best_time()
+  if tbest > 0.0:
+    # a return visit remembers: the title sub carries the best climb (ktl_best in localStorage)
+    var tsu = ui.title.get_child(1).get_child(0).get_child(2)
+    tsu.text = "A STORM-NIGHT ERRAND - BEST CLIMB " + fmt_time(tbest)
+    print("[KTL] title remembers best=", fmt_time(tbest))
   var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_begin)
   ui.end = mk_card("THE LIGHT HOLDS", "",
     "The beam turns again over black water. Somewhere out in the rain, a ship sets her course for home.", b2)

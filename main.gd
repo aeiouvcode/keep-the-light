@@ -1571,10 +1571,10 @@ func start_relight():
   for slot in MISSING:
     var pr = MeshInstance3D.new()
     var pm = PrismMesh.new(); pm.size = Vector3(0.5, 0.85, 0.5)
-    pr.mesh = pm; pr.material_override = mat_glow(Color(1.0,0.96,0.85), 1.2)
+    pr.mesh = pm; pr.material_override = mat_glow(PANE_COLORS[idx % PANE_COLORS.size()].lerp(Color(1.0,0.96,0.85), 0.15), 0.8)
     pr.position = keeper.g.position + Vector3(0, 1.2, 0)
     add_child(pr)
-    fly.append({mesh=pr, t0=0.55 + idx*0.5, slot=slot, done=false})
+    fly.append({mesh=pr, t0=0.55 + idx*0.5, slot=slot, pi=idx, done=false})
     idx += 1
 
 func fail_run():
@@ -2084,7 +2084,8 @@ func _process(dt):
           if not f.done:
             f.done = true
             f.mesh.queue_free()
-            sfx("clink", -8.0, 1.0 + (f.slot % 5) * 0.12)
+            sfx("clink", -10.0, 1.0 + (f.slot % 5) * 0.12)
+            sfx("chime" + str(f.pi + 1), -13.0)  # the pane's own note seats it - the ladder rebuilds
             tower.lens_panes[f.slot].visible = true
           continue
         all_done = false

@@ -588,3 +588,18 @@ Verified: REAL trace on the exported build - "gap nudge th=9.7" fired ahead of t
 gap; gapnudge.png eyeballed: the toast reads while the missing stair and broken
 railing are visible ahead of the keeper. verify3 WON ok on the final build.
 pck 94,000 bytes.
+
+## Cycle 48 - 2026-09-24 ~19:05 IST - PASS
+Built: the relight rebuilds the pane IDENTITY, not just the count. Cycle 3 gave every
+pane a sea-glass hue across shard/pip/lens-facet, but the five fly-in prisms were all
+flat white. Now each prism flies home in its own hue (PANE_COLORS lerped 15% toward
+warm white, emission 0.8 so the hue survives) and each seat sounds that pane's own
+ladder note softly under the clink - the pentatonic ladder rebuilds pane by pane
+before the ignite.
+Caught: first pass (35% white, energy 1.2) still read white-hot in the frame; tuned
+to 15%/0.8 and the lens now shows violet/rose facets seating in the capture.
+Verified: relight-fly.png eyeballed - hued facets read in the lens mid-cutscene
+(honest caveat: the visible hues are the seated facets; the prism hue change is
+code-verified and shares the same PANE_COLORS mapping; the flight prism was not
+caught mid-air this run). relight-ignite.png: the blaze is intact. verify3 WON ok on
+the final build. pck 93,952 bytes.

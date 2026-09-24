@@ -632,3 +632,16 @@ give~0.64) eyeballed: rain streaks clearly thinned, sky lifted from black to nav
 kindled windows + keeper at the lamp intact. Title still opens at full storm (the
 ending branch is the only writer of env_ext). verify3 WON ok on the final build.
 pck 96,288 bytes.
+
+## Cycle 51 - 2026-09-24 ~19:50 IST - PASS
+Built: the first-run touch hint. The phone controls (faint left-half virtual stick +
+JUMP button) were only ever explained on the PAUSE card - a first-time phone player
+met them unlabeled. Now, on the first begin of a load (touch devices only), the game
+toasts "DRAG THE LEFT SIDE TO CLIMB" and pulses the stick alpha 0.14->0.42 twice so
+the control is named where it lives. Once per load; desktop untouched; the cycle-47
+gap nudge still teaches the jump at the moment it matters.
+Verified: REAL trace on the exported build under real touch emulation (iPhone UA,
+hasTouch, actual touchscreen tap on BEGIN) - "[KTL] touch hint shown" fired with
+begin. touch-hint.png eyeballed at the pulse peak: toast top-center, stick visibly
+brightened bottom-left, JUMP bottom-right, keeper mid door-swing. verify3 WON ok.
+pck 96,528 bytes.

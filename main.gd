@@ -1280,6 +1280,7 @@ var ambient_hi_traced = false
 var shard_flare_traced = false
 var drop_flare_traced = false
 var storm_gives_traced = false
+var touch_hint_done = false
 var vignette_traced = false
 var VIGHOLD = false
 var FLASHHOLD = false
@@ -1549,6 +1550,16 @@ func reset_run():
   lantern.visible = true
   wenv.environment = env_tower
   if players.has("drone"): players.drone.stop()
+  # first-run touch hint: the faint stick reads decorative until it is named
+  if is_touch and not touch_hint_done:
+    touch_hint_done = true
+    toast("DRAG THE LEFT SIDE TO CLIMB")
+    var stw = create_tween()
+    stw.tween_property(ui.stick, "color:a", 0.42, 0.5)
+    stw.tween_property(ui.stick, "color:a", 0.14, 0.5)
+    stw.tween_property(ui.stick, "color:a", 0.42, 0.5)
+    stw.tween_property(ui.stick, "color:a", 0.14, 0.6)
+    print("[KTL] touch hint shown")
   print("[KTL] begin")
 
 func ignite():

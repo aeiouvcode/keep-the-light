@@ -830,3 +830,29 @@ III title, STORM II chip on the win frame, streak fail card (480x800). Harness n
 the auto player wins even with startoil=5, so the fail test uses manual BEGIN and a
 standing keeper - the harness D-pass limitation is logged, not hidden.
 Grade: PASS.
+
+## Cycle 63 - telegraph the storm before the first climb
+Critique: the escalation ladder (c62) gave the game a loop, but a returning player
+cannot FEEL the higher storm until they are already climbing. The stakes should be
+visible and audible in the first ten seconds: the title is the storm's stage.
+Built: (1) Title weather now scales with the awaiting storm: rain fall speed and
+streak alpha and surf foam alpha ride rainx = 0.85 + 0.15*L (1.0 at I, 1.45 at IV,
+1.6 at V). The title block computes title_lvl once via storm_level_get() and traces
+it. (2) Begin toast: starting a climb above storm I toasts "STORM III - THE SEA IS
+HIGHER" (suppressed when the first-run touch hint is pending, so a brand-new touch
+player never gets two teaching texts at once). Foam scaling applied to the TITLE
+phase only; the ending phase keeps its own weather (the storm is meant to ease
+there - deliberate, not an omission).
+Failed then fixed: the first patch script died pre-write on a non-unique anchor
+(the foam alpha line exists in BOTH the title and ending phases); the assertion
+saved an unscoped double edit. Re-ran with a 4-line title-context anchor.
+Verified (final build, pck 102,752): verify3 WON ok (L=1 regression). Split-pack
+boot verified locally with index.pck hidden - the game runs purely off the 4 b64
+parts. Traces: storm=1 title "title storm lvl=1 rainx=1"; storm=4 title "title
+storm lvl=4 rainx=1.45"; storm=3 begin "storm toast lvl=3"; streak trace intact
+("title remembers storm=III"). Frames eyeballed: L1 vs L4 title rain (L4 visibly
+denser/brighter streaks in a still) and the begin toast in-world at 480x800.
+Harness note: first harness run had two string bugs of its own (matched 'lvl= 4'
+with a space; toast screenshot raced browser close) - game code was right, the
+harness was wrong; re-ran corrected.
+Grade: PASS.

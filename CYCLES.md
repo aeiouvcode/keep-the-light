@@ -487,3 +487,14 @@ stair and walls flash-lit cool; compare winlights2.png (same angle, no flash). H
 caveat: the strike EVENT traces (lightning delay=) fire on every normal verify3 run;
 flashhold pins only the render state for the still. verify3 WON ok on the final build.
 pck 89,648 bytes.
+
+## Cycle 41 - 2026-09-24 ~13:52 IST - PASS (weak)
+Built: rain run-off - a streak strip scrolls down the wall below every window sill
+(slower than the glass rain), and like the sconces it answers the lantern: alpha 0.10
+idle, up to ~0.65 as the keeper's light nears (3.4-unit falloff, flicker-coupled).
+Caught: two flat-alpha passes (0.30, then 0.52) did not read on dark brick - the fix
+was not more alpha but the lantern-proximity pattern that already works for sconces.
+Verified: drips3.png eyeballed vs drips2.png (same angle, pre-proximity) - a wet sheen
+band reads below the sill in the lantern's reach. Honest caveat: subtle in a still,
+reads in motion with the scroll; two capture runs were lost to a zombie-chrome CPU
+stall (killed, re-ran clean). verify3 WON ok on the final build. pck 90,256 bytes.

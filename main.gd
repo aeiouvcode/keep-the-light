@@ -489,6 +489,21 @@ func build_tower(root):
     rainq.position.z = 0.10
     g.add_child(rainq)
     tower.win_rain.append(rainm)
+    # run-off: rain streaks the wall below the sill
+    if not tower.has("win_drips"): tower.win_drips = []
+    var dq = MeshInstance3D.new()
+    var dpm = PlaneMesh.new(); dpm.size = Vector2(1.5 * wf, 2.3)
+    dq.mesh = dpm
+    var dmt = StandardMaterial3D.new()
+    dmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    dmt.albedo_texture = rain_t
+    dmt.albedo_color = Color(0.75, 0.82, 0.95, 0.12)
+    dmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    dmt.uv1_scale = Vector3(1, 2, 1)
+    dq.material_override = dmt
+    dq.position = Vector3(0, -2.6, 0.16)
+    g.add_child(dq)
+    tower.win_drips.append({m=dmt, th=th4, y=y4 - 2.6})
     # the world outside is alive: village hearth-lights twinkle low, and out on
     # the water a distant ship light answers the foghorn with a slow blink
     if not tower.has("win_lights"): tower.win_lights = []
@@ -1647,6 +1662,9 @@ func _process(dt):
   for m in tower.win_rain:
     m.uv1_offset.y += dt * 0.9 * (1.0 + 1.4 * gust_vis)
     m.uv1_offset.x += dt * 0.55 * gust_vis
+  if tower.has("win_drips"):
+    for dm in tower.win_drips:
+      dm.m.uv1_offset.y += dt * 0.35 * (1.0 + 1.2 * gust_vis)
   # toast fade
   if toast_t > 0:
     toast_t -= dt
@@ -1885,6 +1903,12 @@ func _process(dt):
       var prox = clamp(1.0 - Vector2(dth2, dy2).length() / 2.4, 0.0, 1.0)
       sc.glow.modulate.a = 0.06 + 0.72 * prox * (0.85 + 0.15 * sin(t_now * 11.0))
       sc.glow.scale = Vector3(0.8, 0.8, 1) * (1.0 + 0.6 * prox)
+    if tower.has("win_drips"):
+      for dw in tower.win_drips:
+        var wdth = abs(ST.th - dw.th) * R_SHELL
+        var wdy = abs(ST.y + 1.0 - dw.y)
+        var wprox = clamp(1.0 - Vector2(wdth, wdy).length() / 3.4, 0.0, 1.0)
+        dw.m.albedo_color.a = 0.10 + 0.55 * wprox * (0.85 + 0.15 * sin(t_now * 9.0))
     if tower.has("win_lights"):
       for wl in tower.win_lights:
         if wl.kind == "village":

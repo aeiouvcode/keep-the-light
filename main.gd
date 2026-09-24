@@ -848,6 +848,20 @@ func build_hud():
   var layer = CanvasLayer.new()
   add_child(layer)
   ui.layer = layer
+  # low-oil vignette: the dark closes in from the edges as the lamp dies
+  var vim = Image.create(128, 128, false, Image.FORMAT_RGBA8)
+  for vx in 128:
+    for vy in 128:
+      var vd = Vector2(vx - 63.5, vy - 63.5).length() / 90.0
+      vim.set_pixel(vx, vy, Color(0.02, 0.015, 0.03, smoothstep(0.62, 1.05, vd)))
+  var vtr = TextureRect.new()
+  vtr.texture = ImageTexture.create_from_image(vim)
+  vtr.set_anchors_preset(Control.PRESET_FULL_RECT)
+  vtr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  vtr.stretch_mode = TextureRect.STRETCH_SCALE
+  vtr.modulate.a = 0.0
+  layer.add_child(vtr)
+  ui.vignette = vtr
   # oil chip
   var oilc = PanelContainer.new()
   oilc.add_theme_stylebox_override("panel", chip_style())
@@ -1184,6 +1198,8 @@ var gust_t = 6.0
 var gust_vis = 0.0
 var ambient_hi_traced = false
 var shard_flare_traced = false
+var vignette_traced = false
+var VIGHOLD = false
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
@@ -1210,6 +1226,7 @@ func _ready():
     BURSTHOLD = "bursthold=1" in q
     CLICKLOG = "clicklog=1" in q
     FINECAP = "finecap=1" in q
+    VIGHOLD = "vighold=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1701,6 +1718,14 @@ func _process(dt):
         ST.oil = 0
         fail_run()
     ui.oilfill.anchor_right = clamp(ST.oil / 80.0, 0.0, 1.0)
+    var vg = clamp((20.0 - ST.oil) / 20.0, 0.0, 1.0)
+    if VIGHOLD: vg = 0.82
+    ui.vignette.modulate.a = vg * 0.85 * (0.9 + 0.1 * sin(t_now * 2.4)) if ST.phase == "play" else 0.0
+    if vg > 0.5 and not vignette_traced:
+      vignette_traced = true
+      print("[KTL] vignette closing oil=", snapped(ST.oil, 0.1))
+    elif vg < 0.2 and vignette_traced:
+      vignette_traced = false
     ui.oilfill.modulate.a = 0.55 + 0.45 * (0.5 + 0.5 * sin(t_now * 6.0)) if ST.oil < 16.0 else 1.0
     # pane pickup
     if ST.phase == "play":

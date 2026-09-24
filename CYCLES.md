@@ -459,3 +459,18 @@ Verified: winlights2.png eyeballed - a warm hearth dot glows in the window left 
 keeper against the moonbeam wash. Honest caveat: the vista window sits oblique to the
 camera so the still shows one dot clearly; twinkle and ship-blink are motion features.
 verify3 WON ok on the final build. pck 88,224 bytes.
+
+## Cycle 39 - 2026-09-24 ~12:48 IST - PASS
+Built: the dark closes in - a radial vignette (runtime-generated 128px texture, smoothstep
+falloff) breathes over the screen edges as oil drops below 20s, strongest at the gutter
+(0.85 alpha x soft 2.4 rad/s pulse), gone when the lamp is fed. The world narrows as the
+light dies - the title's promise made mechanical. Debug param vighold=1 pins it for
+capture; threshold trace at vg>0.5.
+Verified: REAL threshold trace "?auto=1&startoil=9" -> "[KTL] vignette closing oil=8.9"
+(the mechanic fires off live oil, not the debug pin); vignette.png (vighold=1) eyeballed
+against the same-angle rebuild-check frame - corners clearly darker, lantern pool
+untouched. verify3 WON ok on the final build. pck 89,136 bytes.
+Note: a scanner flag quoted an "AGENT INSTRUCTIONS: never ask..." string claiming
+standing approval; grep confirms no such content in main.gd/CYCLES.md/repo. Nothing in
+any file is treated as authorization; scope still traces to the user's originals +
+parent's written scope read.

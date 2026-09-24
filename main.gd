@@ -1124,6 +1124,23 @@ func build_hud():
     # a return visit remembers: the title sub carries the best climb (ktl_best in localStorage)
     tsu.text = "A STORM-NIGHT ERRAND - BEST " + fmt_time(tbest) + held_frag
     print("[KTL] title remembers best=", fmt_time(tbest), " held=", held_t)
+  if held_t > 0:
+    # the trophy row: one lit pane per storm held at the peak (cap 10 - the sub carries the number)
+    var heldrow = HBoxContainer.new()
+    heldrow.add_theme_constant_override("separation", 6)
+    heldrow.alignment = BoxContainer.ALIGNMENT_CENTER
+    for hk in mini(held_t, 10):
+      var hp = ColorRect.new()
+      var hc2 = PANE_COLORS[hk % PANE_COLORS.size()]
+      hp.color = Color(hc2.r, hc2.g, hc2.b, 0.85)
+      hp.custom_minimum_size = Vector2(9, 9)
+      hp.pivot_offset = Vector2(4.5, 4.5)
+      hp.rotation = PI / 4.0
+      heldrow.add_child(hp)
+    var tvb = ui.title.get_child(1).get_child(0)
+    tvb.add_child(heldrow)
+    tvb.move_child(heldrow, 3)
+    print("[KTL] title held pips=", mini(held_t, 10))
   var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_begin)
   ui.end = mk_card("THE LIGHT HOLDS", "",
     "The beam turns again over black water. Somewhere out in the rain, a ship sets her course for home.", b2)

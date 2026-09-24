@@ -577,3 +577,14 @@ his lantern merged with it; moved him off the glass axis (x=1.55) and enlarged
 Verified: towerans-mid.png eyeballed - the brimmed figure reads clearly on the
 gallery with windows kindling below; tower answers win=1..5 and ignite/ending/won
 traces intact on the exported build. verify3 WON ok. pck 93,792 bytes.
+
+## Cycle 47 - 2026-09-24 ~18:30 IST - PASS
+Built: a first-run nudge at the one gotcha. The stair gap (th 10.0-10.3) already had
+broken stubs and a split railing, but a first-timer still ran off the edge and fell
+to the bottom - the harshest beat in the game. Now, crossing th 9.55 in play (once
+per run, reset on begin) toasts "A STAIR IS MISSING - JUMP" with a trace. Uses the
+existing toast lane; no mechanic or economy change.
+Verified: REAL trace on the exported build - "gap nudge th=9.7" fired ahead of the
+gap; gapnudge.png eyeballed: the toast reads while the missing stair and broken
+railing are visible ahead of the keeper. verify3 WON ok on the final build.
+pck 94,000 bytes.

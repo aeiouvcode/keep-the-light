@@ -1250,7 +1250,7 @@ func build_exterior():
 # ---------- state, input, loop ----------
 var ST = {phase="title", th=0.0, y=0.0, vy=0.0, grounded=true, coyote=0.0, oil=80.0,
   panes=0, elapsed=0.0, faceDir=1, walkPh=0.0, stepT=0.0, relightT=0.0, lowWarned=false, gust_v=0.0,
-  warnedTop=false, endT=0.0}
+  warnedTop=false, endT=0.0, warnedGap=false}
 var keeper = {}
 var cam = Camera3D.new()
 var wenv = WorldEnvironment.new()
@@ -1522,7 +1522,7 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
@@ -1894,6 +1894,10 @@ func _process(dt):
           sfx("sip", -8.0)
           toast("OIL DROP - +8S OIL")
           print("[KTL] drop +8 oil=", snapped(ST.oil, 0.1), " th=", snapped(d.th, 0.1))
+      if not ST.warnedGap and ST.th > 9.55 and ST.th < GAP[0]:
+        ST.warnedGap = true
+        toast("A STAIR IS MISSING - JUMP")
+        print("[KTL] gap nudge th=", snapped(ST.th, 0.1))
       if ST.th >= 19.35:
         if ST.panes >= 5:
           start_relight()

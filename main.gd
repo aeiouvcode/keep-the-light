@@ -34,6 +34,7 @@ var shake_cur = 0.0
 var sputter_t = 0.0
 var sputter_n = 0
 var BURSTHOLD = false
+var BALCONYHOLD = false
 var bursts = []
 var muted = false
 var CLICKLOG = false
@@ -592,6 +593,58 @@ func build_tower(root):
     if wf > 1.0:
       g.rotation.y += 0.38  # bay the gallery window toward the climbing approach
     root.add_child(g)
+
+  # the balcony door: the tower opens to the storm at the second landing -
+  # a full-height doorway framing the moonlit sea, a rail to lean on, rain off the head
+  var bd = Node3D.new()
+  var bfr = mat_lam(Color(0.13,0.145,0.18))
+  var bmk = func(sz, x2, y2, z2):
+    var m = box(sz, bfr); m.position = Vector3(x2, y2, z2); bd.add_child(m)
+  bmk.call(Vector3(0.24,4.2,0.4), -0.85, 2.1, 0.0)
+  bmk.call(Vector3(0.24,4.2,0.4), 0.85, 2.1, 0.0)
+  bmk.call(Vector3(1.95,0.24,0.4), 0, 4.25, 0.0)
+  bmk.call(Vector3(2.1,0.14,0.55), 0, 0.07, 0.05)
+  var bq = MeshInstance3D.new()
+  var bpm = PlaneMesh.new(); bpm.size = Vector2(1.6, 3.6); bq.mesh = bpm
+  var bqm = StandardMaterial3D.new()
+  bqm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  bqm.albedo_texture = vista
+  bq.material_override = bqm
+  bq.position = Vector3(0, 2.3, 0.08)
+  bd.add_child(bq)
+  var brq = MeshInstance3D.new()
+  var brpm = PlaneMesh.new(); brpm.size = Vector2(1.6, 3.6); brq.mesh = brpm
+  var brm = StandardMaterial3D.new()
+  brm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  brm.albedo_texture = rain_t
+  brm.albedo_color = Color(1,1,1,0.5)
+  brm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+  brm.uv1_scale = Vector3(1, 3, 1)
+  brq.material_override = brm
+  brq.position = Vector3(0, 2.3, 0.14)
+  bd.add_child(brq)
+  tower.win_rain.append(brm)
+  # Juliet rail across the opening, a breath proud of the reveal
+  var brail = mat_lam(Color(0.20,0.21,0.26))
+  var bar2 = box(Vector3(1.6,0.055,0.055), brail); bar2.position = Vector3(0, 1.12, 0.3); bd.add_child(bar2)
+  for px in [-0.72, 0.0, 0.72]:
+    var bp = box(Vector3(0.05,1.12,0.05), brail); bp.position = Vector3(px, 0.56, 0.3); bd.add_child(bp)
+  # moon-spill pooled on the landing at the threshold
+  var bs = MeshInstance3D.new()
+  var bspm = PlaneMesh.new(); bspm.size = Vector2(2.6, 2.2); bs.mesh = bspm
+  var bsm = StandardMaterial3D.new()
+  bsm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  bsm.albedo_texture = tower.glow_tex
+  bsm.albedo_color = Color(0.62, 0.74, 0.88, 0.3)
+  bsm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+  bsm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+  bs.material_override = bsm
+  bs.rotation.x = -PI / 2.0
+  bs.position = Vector3(0, 0.1, 1.0)
+  bd.add_child(bs)
+  place_radial(bd, 7.6, 6.97, 7.62)
+  bd.rotation.y += 0.34  # bay the doorway toward the climbing approach
+  root.add_child(bd)
 
 func build_lamp_room(root):
   var lr = Node3D.new()
@@ -1299,6 +1352,7 @@ var gust_dir = 1.0
 var gust_pending = 0.0
 var gap_air = false
 var gap_cleared = false
+var balcony_traced = false
 var gap_glow = 0.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
@@ -1321,6 +1375,7 @@ func _ready():
     LANDHOLD = "landhold=1" in q
     SHAKEHOLD = "shakehold=1" in q
     BURSTHOLD = "bursthold=1" in q
+    BALCONYHOLD = "balconyhold=1" in q
     CLICKLOG = "clicklog=1" in q
     FINECAP = "finecap=1" in q
     VIGHOLD = "vighold=1" in q
@@ -1540,7 +1595,7 @@ func reset_run():
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
-  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0
+  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
@@ -1991,6 +2046,7 @@ func _process(dt):
       wsn.material_override.albedo_color.a = 0.52 * gust_vis * (0.55 + 0.45 * sin(t_now * 9.0 + wsd.ph * 5.0))
     # landing juice: squash on touch-down, stretch on jump, dust puff at the feet
     if LANDHOLD and ST.phase == "play": squashV = 0.78; dust_t = 0.3
+    if BALCONYHOLD and ST.phase == "play": ST.th = 7.34; ST.y = 7.62  # debug: stand just before the balcony door for capture
     squashV = lerp(squashV, 1.0, min(1.0, dt * 9.0))
     kg.scale = Vector3(1.0 + (1.0 - squashV) * 0.45, squashV, 1.0 + (1.0 - squashV) * 0.45)
     if dust_sp == null:
@@ -2117,9 +2173,12 @@ func _process(dt):
     var desired = ST.th - 0.5 * ST.faceDir
     var zw = 0.0
     if ST.phase == "play":
-      zw = 1.0 - clamp(abs(ST.th - 6.0) / 0.85, 0.0, 1.0)
+      zw = max(1.0 - clamp(abs(ST.th - 6.0) / 0.85, 0.0, 1.0), 1.0 - clamp(abs(ST.th - 7.6) / 0.85, 0.0, 1.0))
     if zw > 0.0:
       desired = ST.th - (0.5 + 0.7 * zw) * ST.faceDir  # ease wide at the gallery window
+    if ST.phase == "play" and not balcony_traced and ST.th > 7.55:
+      balcony_traced = true
+      print("[KTL] balcony th=" + str(snapped(ST.th, 0.01)))
     desired += peek
     peek = lerp(peek, 0.0, 1.0 - pow(0.05, dt))
     if abs(peek) < 0.1: peek_traced = false

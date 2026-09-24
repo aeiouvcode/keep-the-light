@@ -361,3 +361,19 @@ Verified: trace "paused panes=1 t=0:01 oil=83" (elapsed is game-time, swiftshade
 slow - 1.4s reads 0:01, consistent); pause.png eyeballed - card shows PAUSED /
 1/5 PANES - 0:01 - OIL 83 with the RESUME button and first pip lit. verify3 WON ok.
 pck 84,432 bytes.
+
+## Cycle 32 - 2026-09-24 ~09:25 IST - PASS
+Built: the keeper feels the gusts - during a wind push the whole body leans into it
+(kg.rotation.x = -gust_dir * gust_vis * 0.14 * faceDir, decaying with the gust) and the
+lantern flame flattens (x-stretch +55%, y-squash -35% at full gust). Until now only the
+lamp arm swung; the man himself stood ignore-the-weather upright. Gust start now traces
+"dir/lean" for verification.
+Context: the sandbox was wiped before this cycle; the toolchain was rebuilt from the repo
+(clone + Godot 4.3 + web templates + puppeteer + verify3 rewrite). Rebuild verified
+faithful: rebuild-check.png identical to cycle 30's sconce frame, icons byte-identical,
+verify3 WON ok. The earlier 60KB pck mystery resolved itself: a cold-project export had
+missed resources; the warm export is 84,608 bytes, +176 over live for this cycle's code.
+Verified: gust trace "gust dir=1 lean=-0.14 h=0.38" with gusthold=1; lean.png eyeballed -
+flame reads flattened and wide vs the tall streak in rebuild-check.png, body lean subtle
+(~8 deg, honest note: reads in motion more than in a still). verify3 WON ok on the final
+build. pck 84,608 bytes.

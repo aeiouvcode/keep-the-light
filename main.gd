@@ -1504,6 +1504,7 @@ func _process(dt):
     ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * (1.0 if randf() < 0.5 else -1.0)
     gust_dir = sign(ST.gust_v)
     sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
+    print("[KTL] gust dir=", gust_dir, " lean=", snapped(-gust_dir * 0.14 * ST.faceDir, 0.01), " h=", snapped(storm_h, 0.01))
     gust_vis = 1.0
     print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01), " lean=", snapped(-gust_dir * 1.0 * 0.3, 0.01), " rain_db=", -13.0 + 2.0 * 1.0)
   # distant foghorn, rare and soft - the world beyond the tower
@@ -1667,6 +1668,7 @@ func _process(dt):
     var kg = keeper.g
     kg.position = Vector3(R_SHELL * cos(ST.th), ST.y, R_SHELL * sin(ST.th))
     kg.rotation.y = -ST.th - PI/2.0 + (PI/2.0 if ST.faceDir > 0 else -PI/2.0)
+    kg.rotation.x = -gust_dir * gust_vis * 0.14 * ST.faceDir  # lean into the gust
     var wob = abs(sin(ST.walkPh)) if ST.grounded else 0.0
     kg.position.y += wob * 0.05
     var sw = sin(ST.walkPh) * 0.7 * (1.0 if dir != 0 and ST.grounded else 0.0)
@@ -1682,7 +1684,7 @@ func _process(dt):
     lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick * (1.0 - 0.3 * gust_vis)
     keeper.lglow.modulate.a = 0.5 + 0.4 * oil_frac * flick
     var fsc = (0.5 + 0.5 * oil_frac) * (1.0 + (flick - 1.0) * 0.7)
-    keeper.flame.scale = Vector3(fsc, fsc, fsc)
+    keeper.flame.scale = Vector3(fsc * (1.0 + 0.55 * gust_vis), fsc * (1.0 - 0.35 * gust_vis), fsc)  # wind flattens the flame
     keeper.flame.material_override.emission = Color(1.0, 0.85, 0.63).lerp(Color(1.0, 0.42, 0.22), 1.0 - oil_frac)
     keeper.lglow.scale = Vector3(1.1, 1.1, 1) * (0.6 + 0.4 * oil_frac)
     if oil_frac < 0.2 and not flameLow and ST.phase == "play":

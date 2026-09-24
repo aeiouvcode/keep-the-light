@@ -1016,7 +1016,7 @@ func build_hud():
   layer.add_child(ui.fail)
   var b4 = mk_button("RESUME"); b4.pressed.connect(toggle_pause)
   ui.paused = mk_card("PAUSED", "THE STORM WAITS",
-    "WASD or left stick - climb. Mouse or drag - look. SPACE or JUMP - jump. Walk into a pane to take it. ESC - back to the stair.", b4)
+    "A/D, arrows or left stick - climb. SPACE or JUMP - jump. Drag - peek around the curve. Walk into a pane to take it. ESC - back to the stair.", b4)
   ui.paused.visible = false
   layer.add_child(ui.paused)
 
@@ -1226,6 +1226,8 @@ var flash_light = DirectionalLight3D.new()
 var lantern = OmniLight3D.new()
 var flashV = 0.0
 var camTh = 0.0
+var peek = 0.0
+var peek_traced = false
 var camY = 2.5
 var camRcur = 0.4
 var phase2T = 0.0
@@ -1446,9 +1448,19 @@ func _input(ev):
       if ev.index == stick_id:
         stick_id = -1
         stick_x = 0.0
+  if ev is InputEventMouseMotion and (ev.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and ST.phase == "play":
+    peek = clamp(peek + ev.relative.x * 0.004, -1.1, 1.1)
+    if abs(peek) > 0.5 and not peek_traced:
+      peek_traced = true
+      print("[KTL] peek=", snapped(peek, 0.01))
   if ev is InputEventScreenDrag and ev.index == stick_id:
     stick_x = clamp((ev.position.x - stick_origin.x) / 55.0, -1.0, 1.0)
     ui.knob.position = ui.stick.position + Vector2(39, 39) + Vector2(stick_x * 32, 0)
+  elif ev is InputEventScreenDrag and ST.phase == "play":
+    peek = clamp(peek + ev.relative.x * 0.005, -1.1, 1.1)
+    if abs(peek) > 0.5 and not peek_traced:
+      peek_traced = true
+      print("[KTL] peek=", snapped(peek, 0.01))
 
 func _on_begin():
   reset_run()
@@ -1968,6 +1980,9 @@ func _process(dt):
       zw = 1.0 - clamp(abs(ST.th - 6.0) / 0.85, 0.0, 1.0)
     if zw > 0.0:
       desired = ST.th - (0.5 + 0.7 * zw) * ST.faceDir  # ease wide at the gallery window
+    desired += peek
+    peek = lerp(peek, 0.0, 1.0 - pow(0.05, dt))
+    if abs(peek) < 0.1: peek_traced = false
     camTh = lerp(camTh, desired, 1.0 - pow(0.001, dt))
     camY = lerp(camY, ST.y + 2.4, 1.0 - pow(0.001, dt))
     var at_top = ST.y > 18.2

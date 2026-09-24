@@ -531,3 +531,19 @@ Verified: REAL traces on the exported build - win=1..5 firing in order at endT
 final build. towerans-mid.png eyeballed: three lit windows read clearly down the
 silhouette with the beams sweeping; towerans-won.png: the lit windows hold behind the
 THE LIGHT HOLDS card. pck 91,616 bytes.
+
+## Cycle 44 - 2026-09-24 ~17:00 IST - PASS
+Built: drag-to-peek + an honest pause card. The pause card claimed "Mouse or drag -
+look" and "WASD" - but no look control existed (no MouseMotion handler; only A/D and
+arrows move). Instead of deleting the claim, made it true: drag (mouse-held motion or
+a touch drag outside the stick) now swings the camera up to 1.1 rad around the curve,
+easing back to the follow on release (lerp decay, pow(0.05,dt)). Addresses the old
+known gap that the follow camera hugs the keeper and wall features pass unseen. Card
+now reads: "A/D, arrows or left stick - climb. SPACE or JUMP - jump. Drag - peek
+around the curve." Edge trace "peek=" at |0.5|, re-arms below 0.1.
+Verified: REAL input run on the exported build - puppeteer mouse drag (20 steps)
+fired "peek=-0.51" exactly once (edge-trigger holds until decay re-arms). peek-held.png
+vs peek-settled.png eyeballed: the view swings around the curve under drag and eases
+back; honest caveat - the auto player keeps climbing between shots, so the A/B also
+carries follow-camera motion, but the trace + visible swing confirm the mechanic.
+verify3 WON ok on the final build. pck 92,256 bytes.

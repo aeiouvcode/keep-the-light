@@ -44,6 +44,13 @@ var DOOROPEN = false
 var DROPTEST = false
 var dropped = false
 var START_OIL = 80.0
+# the escalation ladder: consecutive wins raise the storm (I-V), a fail takes the streak
+const STORM_MAX = 5
+var storm_level = 1
+var storm_base = 0.0
+var gust_scale = 1.0
+var STORM_OVERRIDE = 0
+var startoil_given = false
 
 func surf_y(s, th):
   var t = clamp((th - s.a0) / (s.a1 - s.a0), 0.0, 1.0)
@@ -1003,6 +1010,14 @@ func build_hud():
     pips.add_child(pp)
     ui.pips.append(inner)
   layer.add_child(pips)
+  # the escalation chip: names the storm once the streak passes I
+  var stormchip = mk_label("", 11, Color(0.957, 0.918, 0.847, 0.55))
+  stormchip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+  stormchip.position = Vector2(-160, 42)
+  stormchip.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+  stormchip.visible = false
+  layer.add_child(stormchip)
+  ui.stormchip = stormchip
   var pauseb = Button.new()
   pauseb.text = "II"
   var pbs = chip_style()
@@ -1077,10 +1092,15 @@ func build_hud():
     "The lamp is out. Five lens panes lie scattered on the stair. Climb, gather them, and relight the light before the oil is gone.", b1)
   layer.add_child(ui.title)
   var tbest = best_time()
-  if tbest > 0.0:
+  var tlevel = storm_level_get()
+  var tsu = ui.title.get_child(1).get_child(0).get_child(2)
+  if tlevel > 1:
+    # a streak in progress: the title names the storm awaiting the keeper
+    tsu.text = "STORM " + roman(tlevel) + (" - BEST " + fmt_time(tbest) if tbest > 0.0 else " - THE SEA TESTS YOU AGAIN")
+    print("[KTL] title remembers storm=", roman(tlevel))
+  elif tbest > 0.0:
     # a return visit remembers: the title sub carries the best climb (ktl_best in localStorage)
-    var tsu = ui.title.get_child(1).get_child(0).get_child(2)
-    tsu.text = "A STORM-NIGHT ERRAND - BEST CLIMB " + fmt_time(tbest)
+    tsu.text = "A STORM-NIGHT ERRAND - BEST " + fmt_time(tbest)
     print("[KTL] title remembers best=", fmt_time(tbest))
   var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_begin)
   ui.end = mk_card("THE LIGHT HOLDS", "",
@@ -1377,7 +1397,9 @@ func _ready():
     AUTO = "auto=1" in q
     FAST = "fast=1" in q
     var mo = q.find("startoil=")
-    if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
+    if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0); startoil_given = true
+    var mst = q.find("storm=")
+    if mst >= 0: STORM_OVERRIDE = clampi(q.substr(mst + 6, 2).to_int(), 1, 5)
     GUSTHOLD = "gusthold=1" in q
     LANDHOLD = "landhold=1" in q
     SHAKEHOLD = "shakehold=1" in q
@@ -1473,11 +1495,6 @@ func _ready():
   cam.current = true
   layout_hud()
   get_viewport().size_changed.connect(layout_hud)
-  var bt = best_time()
-  if bt > 0.0:
-    var tl = []
-    _collect_labels(ui.title, tl)
-    if tl.size() > 1: tl[1].text = "A STORM-NIGHT ERRAND - BEST " + fmt_time(bt)
   ui.title.modulate.a = 0.0
   var etw = create_tween()
   etw.tween_property(ui.title, "modulate:a", 1.0, 0.9).set_delay(0.15)
@@ -1599,7 +1616,14 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
+  storm_level = storm_level_get()
+  storm_base = 0.08 * (storm_level - 1)
+  gust_scale = 1.0 - 0.1 * (storm_level - 1)
+  var oil_eff = START_OIL if startoil_given else 80.0 - 4.0 * (storm_level - 1)
+  print("[KTL] storm level L=", storm_level, " oil=", oil_eff, " gustx=", snapped(gust_scale, 0.01))
+  ui.stormchip.text = "STORM " + roman(storm_level)
+  ui.stormchip.visible = storm_level > 1
+  ST.oil = oil_eff; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
   ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false; wind_marks.clear()
@@ -1687,6 +1711,12 @@ func fail_run():
   _collect_labels(ui.fail, flabels)
   if flabels.size() > 1:
     flabels[1].text = "THE OIL RAN OUT ON THE STAIR - " + str(ST.panes) + " OF 5 PANES LIT"
+  if storm_level > 1:
+    storm_level_set(1)
+    if flabels.size() > 1:
+      flabels[1].text += " - THE STORM TAKES THE STREAK"
+    print("[KTL] storm level reset")
+  if flabels.size() > 1: print("[KTL] fail card: ", flabels[1].text)
   if ST.phase == "fail": ui.fail.visible = true
   print("[KTL] fail panes=", ST.panes)
 
@@ -1695,6 +1725,20 @@ func best_time():
   var v = JavaScriptBridge.eval("localStorage.getItem('ktl_best')||''")
   return float(v) if str(v) != "" else 0.0
 
+func roman(n):
+  return ["I", "II", "III", "IV", "V"][clampi(n, 1, 5) - 1]
+
+func storm_level_get():
+  if STORM_OVERRIDE > 0: return STORM_OVERRIDE
+  if not OS.has_feature("web"): return 1
+  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_storm')||''")
+  return clampi(int(v) if str(v) != "" else 1, 1, STORM_MAX)
+
+func storm_level_set(n):
+  if STORM_OVERRIDE > 0: return  # debug runs never touch the stored streak
+  if not OS.has_feature("web"): return
+  JavaScriptBridge.eval("localStorage.setItem('ktl_storm','" + str(clampi(n, 1, STORM_MAX)) + "')")
+
 func win_run():
   ST.phase = "won"
   var prev = best_time()
@@ -1702,6 +1746,9 @@ func win_run():
   if is_best:
     JavaScriptBridge.eval("localStorage.setItem('ktl_best','" + str(ST.elapsed) + "')")
     print("[KTL] new best ", fmt_time(ST.elapsed))
+  var next_level = mini(storm_level + 1, STORM_MAX)
+  storm_level_set(next_level)
+  print("[KTL] storm level next=", next_level)
   var sub = ui.end.find_child("", true, false)
   var labels = []
   _collect_labels(ui.end, labels)
@@ -1712,6 +1759,11 @@ func win_run():
       labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - BEST " + fmt_time(prev)
     else:
       labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - 5 PANES"
+    if storm_level < STORM_MAX:
+      labels[1].text += " - STORM " + roman(next_level) + " AWAITS"
+    else:
+      labels[1].text += " - THE HIGHEST STORM HELD"
+    print("[KTL] win card: ", labels[1].text)
   ui.end.visible = true
   print("[KTL] won elapsed=", ST.elapsed, " is_best=", is_best)
 
@@ -1754,7 +1806,7 @@ func _process(dt):
   # distance (near strike = short gap, louder, sharper; far = long gap, soft, low)
   # storm escalation: the higher the climb, the worse the storm. Strikes come
   # more often and the wind swell rises with altitude (still soft - sound bar).
-  var storm_h = clamp(ST.y / 19.0, 0.0, 1.0)
+  var storm_h = clamp(ST.y / 19.0 + storm_base, 0.0, 1.0)
   if ST.phase == "play":
     storm_h = clamp(storm_h - 0.55 * exp(-pow(ST.th - 14.5, 2.0) / 2.5), 0.0, 1.0)  # the eye of the storm
   thunder_t -= dt
@@ -1803,7 +1855,7 @@ func _process(dt):
       gust_vis = 1.0
       print("[KTL] gust hits dir=", gust_dir, " v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
   if gust_t <= 0 and ST.phase == "play" and gust_pending <= 0.0:
-    gust_t = randf_range(lerp(11.0, 6.0, storm_h), lerp(17.0, 9.0, storm_h))
+    gust_t = randf_range(lerp(11.0, 6.0, storm_h) * gust_scale, lerp(17.0, 9.0, storm_h) * gust_scale)
     gust_dir = 1.0 if randf() < 0.5 else -1.0
     gust_pending = 0.85
     sfx("gust", -19.0, 1.3)  # the warning whistle - quieter, higher

@@ -563,3 +563,17 @@ rain reads; flash frame only subtly brighter (honest caveat: rain-flash is a mot
 read). Trace "[KTL] title exterior storm" + lightning traces on title confirm the
 state. verify3 WON ok on the final build (auto begin still cuts to interior and wins).
 pck 93,136 bytes.
+
+## Cycle 46 - 2026-09-24 ~18:05 IST - PASS
+Built: the keeper takes the watch. The exterior ending now shows his brimmed
+silhouette standing on the gallery beside the relit lamp (dark capsule + brim on the
+gallery deck, his lantern a small warm glow at his side, flickering). Hidden at title
+via the cycle-45 set_ext_lit gate - at title he is still inside, at the bottom; after
+the relight he stands the watch. The story closes: the climb ends with the keeper AT
+the light he saved.
+Caught: first placement (x=0.8, h=1.5) read as a thin nub lost in the lamp glow and
+his lantern merged with it; moved him off the glass axis (x=1.55) and enlarged
+(h=1.8, brim 0.42) - the silhouette now reads against the glow.
+Verified: towerans-mid.png eyeballed - the brimmed figure reads clearly on the
+gallery with windows kindling below; tower answers win=1..5 and ignite/ending/won
+traces intact on the exported build. verify3 WON ok. pck 93,792 bytes.

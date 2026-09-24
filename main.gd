@@ -194,6 +194,9 @@ func set_ext_lit(lit):
   EXT.glass_mat.emission_energy_multiplier = 1.2 if lit else 0.10
   EXT.lg.modulate.a = 0.95 if lit else 0.0
   EXT.lp.light_energy = 6.0 if lit else 0.0
+  EXT.keeperfig.visible = lit
+  EXT.keeperbrim.visible = lit
+  EXT.keeperlamp.modulate.a = 0.85 if lit else 0.0
   EXT.beams.visible = lit
 
 var players = {}
@@ -1121,6 +1124,24 @@ func build_exterior():
   lp.omni_range = 220; lp.omni_attenuation = 0.7; lp.position.y = 27.6
   tw.add_child(lp)
   EXT.lp = lp
+  # the keeper takes the watch: his silhouette stands by the lamp once it is relit
+  var kfig = MeshInstance3D.new()
+  var kcap = CapsuleMesh.new(); kcap.radius = 0.34; kcap.height = 1.8; kcap.radial_segments = 8
+  kfig.mesh = kcap; kfig.material_override = bodym
+  kfig.position = Vector3(1.55, 27.05, 2.15)
+  tw.add_child(kfig)
+  var kbrim = MeshInstance3D.new()
+  var kbm = CylinderMesh.new(); kbm.top_radius = 0.24; kbm.bottom_radius = 0.42; kbm.height = 0.14; kbm.radial_segments = 8
+  kbrim.mesh = kbm; kbrim.material_override = bodym
+  kbrim.position = Vector3(1.55, 27.85, 2.15)
+  tw.add_child(kbrim)
+  EXT.keeperfig = kfig
+  EXT.keeperbrim = kbrim
+  var kl = Sprite3D.new(); kl.texture = tower.glow_tex
+  kl.modulate = Color(1.0, 0.72, 0.35, 0.0); kl.scale = Vector3(0.9, 0.9, 1)
+  kl.position = Vector3(2.05, 27.2, 2.3)
+  tw.add_child(kl)
+  EXT.keeperlamp = kl
   # the tower answers: warm windows kindle up the shell once the light is relit
   var wspec = [[3.2, -0.50], [7.6, -0.06], [12.0, -0.42], [16.4, -0.14], [20.8, -0.36]]
   for ws in wspec:
@@ -2090,6 +2111,7 @@ func _process(dt):
     EXT.beams.rotation.y += dt * 0.55
     EXT.road_mat.uv1_offset.y += dt * 0.4
     EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * (1.0 + 1.6 * flashV))
+    EXT.keeperlamp.modulate.a = 0.7 + 0.2 * sin(t_now * 11.0) + 0.08 * sin(t_now * 29.0)
     # rain rebuild
     var im = EXT.rain_mesh
     im.clear_surfaces()

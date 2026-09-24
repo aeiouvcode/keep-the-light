@@ -1267,10 +1267,16 @@ func apply_mute(m, quiet = false):
 func toggle_pause():
   if ST.phase == "play":
     ST.phase = "pause"
+    var pl = []
+    _collect_labels(ui.paused, pl)
+    if pl.size() > 1:
+      pl[1].text = str(ST.panes) + "/5 PANES - " + fmt_time(ST.elapsed) + " - OIL " + str(int(ST.oil))
     ui.paused.visible = true
+    print("[KTL] paused panes=", ST.panes, " t=", fmt_time(ST.elapsed), " oil=", int(ST.oil))
   elif ST.phase == "pause":
     ST.phase = "play"
     ui.paused.visible = false
+    print("[KTL] resumed")
 
 func mute_chip_hit(pos):
   var vs4 = get_viewport().get_visible_rect().size

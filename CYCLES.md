@@ -353,3 +353,11 @@ script chain (a replace target that no longer existed) - grep before trusting an
 Verified: sconce.png eyeballed - the just-passed sconce glows warm on the bricks at lower
 left, distinct from the lantern pool, the next sconce stays dark as designed. verify3
 WON ok on the final build. pck 84,160 bytes.
+
+## Cycle 31 - 2026-09-24 ~08:47 IST - PASS
+Built: the pause card now carries the run state - its subtitle updates on open to
+"N/5 PANES - M:SS - OIL NN" instead of the static line, plus paused/resumed traces.
+Verified: trace "paused panes=1 t=0:01 oil=83" (elapsed is game-time, swiftshader runs
+slow - 1.4s reads 0:01, consistent); pause.png eyeballed - card shows PAUSED /
+1/5 PANES - 0:01 - OIL 83 with the RESUME button and first pip lit. verify3 WON ok.
+pck 84,432 bytes.

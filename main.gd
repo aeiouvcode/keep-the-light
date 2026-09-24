@@ -27,6 +27,8 @@ var FAST = false
 var GUSTHOLD = false
 var SHAKEHOLD = false
 var shake_cur = 0.0
+var sputter_t = 0.0
+var sputter_n = 0
 var DOORSHUT = false
 var DOOROPEN = false
 var DROPTEST = false
@@ -160,6 +162,8 @@ func build_audio():
     return (sin(TAU2 * 98.0 * t) * 0.5 + sin(TAU2 * 147.0 * t) * 0.22) * env * env * 0.4))
   SND.sip = make_wav(synth(0.55, func(t, i, n, lp):
     return (sin(TAU2 * 261.6 * t) * 0.5 + sin(TAU2 * 392.0 * t) * 0.14) * exp(-t * 7.0) * 0.5))
+  SND.sputter = make_wav(synth(0.12, func(t, i, n, lp):
+    return ((randf() * 2.0 - 1.0) * 0.4 + lp * 1.2) * exp(-t * 45.0) * 0.35))
   SND.gutter = make_wav(synth(1.3, func(t, i, n, lp):
     return (sin(TAU2 * (150.0 - t * 90.0) * t) * 0.4 + (randf() * 2.0 - 1.0) * 0.2) * exp(-t * 2.4) * 0.6))
 var players = {}
@@ -1249,7 +1253,7 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
@@ -1512,6 +1516,13 @@ func _process(dt):
         ui.oilfill.color = Color(0.69, 0.227, 0.133)
         sfx("gutter", -15.0, 1.35)  # a quiet cough from the lamp
         print("[KTL] lowoil")
+      if ST.oil < 16 and ST.oil > 0:
+        sputter_t -= dt
+        if sputter_t <= 0:
+          sputter_t = randf_range(0.3, 0.9)
+          sfx("sputter", -16.0, randf_range(0.8, 1.3))
+          sputter_n += 1
+          if sputter_n <= 3: print("[KTL] sputter n=", sputter_n, " oil=", snapped(ST.oil, 0.1))
       if ST.oil <= 0:
         ST.oil = 0
         fail_run()

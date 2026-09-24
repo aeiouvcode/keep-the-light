@@ -285,3 +285,12 @@ storm shake=0.92 (delay 0.63) - scaling reads correctly. Pinned A/B frames at th
 climb moment (sh-calm.png vs sh-hold.png) eyeballed: the held frame's composition is
 visibly displaced (keeper shifted center, left window cut off, rail raised). verify3
 WON ok. pck 80,512 bytes.
+
+## Cycle 25 - 2026-09-24 ~05:43 IST - PASS
+Built: low-oil sputter - while oil stays under 16 the lamp spits sparse soft pops
+(0.3-0.9s apart, lowpassed noise burst 0.12s, -16dB, random pitch 0.8-1.3 - inside the
+sound bar). Extends the one-shot "gutter" cough into an ongoing audible warning that pairs
+with the cycle-21 ember flame. Traces print for the first three pops only (no log spam).
+Verified: startoil=14 auto run shows "lowoil" then "sputter n=1 oil=13.9 / n=2 13.5 /
+n=3 13.1"; full-oil control run shows no sputter traces. Audio cycle - verification is
+traces (no frame). verify3 WON ok. pck 80,864 bytes.

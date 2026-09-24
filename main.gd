@@ -186,6 +186,16 @@ func build_audio():
     return ((randf() * 2.0 - 1.0) * 0.4 + lp * 1.2) * exp(-t * 45.0) * 0.35))
   SND.gutter = make_wav(synth(1.3, func(t, i, n, lp):
     return (sin(TAU2 * (150.0 - t * 90.0) * t) * 0.4 + (randf() * 2.0 - 1.0) * 0.2) * exp(-t * 2.4) * 0.6))
+func set_ext_lit(lit):
+  # the tower's lamp is dark until the relight - the title shows the storm-lashed
+  # shell with the light OUT (the premise), the ending shows it lit (the payoff)
+  EXT.glass_mat.albedo_color = Color(1.0, 0.77, 0.42, 0.55) if lit else Color(0.45, 0.55, 0.72, 0.30)
+  EXT.glass_mat.emission = Color(1.0, 0.77, 0.42) if lit else Color(0.45, 0.55, 0.72)
+  EXT.glass_mat.emission_energy_multiplier = 1.2 if lit else 0.10
+  EXT.lg.modulate.a = 0.95 if lit else 0.0
+  EXT.lp.light_energy = 6.0 if lit else 0.0
+  EXT.beams.visible = lit
+
 var players = {}
 func sfx(name, vol_db = 0.0, pitch = 1.0):
   if not SND.has(name): return
@@ -1098,6 +1108,7 @@ func build_exterior():
   glm.cull_mode = BaseMaterial3D.CULL_DISABLED
   glass.material_override = glm; glass.position.y = 27.6
   tw.add_child(glass)
+  EXT.glass_mat = glm
   var dome = MeshInstance3D.new()
   var dm3 = CylinderMesh.new(); dm3.top_radius = 0.1; dm3.bottom_radius = 2.8; dm3.height = 2.2; dm3.radial_segments = 14
   dome.mesh = dm3; dome.material_override = bodym; dome.position.y = 30
@@ -1105,9 +1116,11 @@ func build_exterior():
   var lg = Sprite3D.new(); lg.texture = tower.glow_tex
   lg.modulate = Color(1.0,0.85,0.63,0.95); lg.scale = Vector3(16,16,1); lg.position.y = 27.6
   tw.add_child(lg)
+  EXT.lg = lg
   var lp = OmniLight3D.new(); lp.light_color = Color(1.0,0.75,0.42); lp.light_energy = 6.0
   lp.omni_range = 220; lp.omni_attenuation = 0.7; lp.position.y = 27.6
   tw.add_child(lp)
+  EXT.lp = lp
   # the tower answers: warm windows kindle up the shell once the light is relit
   var wspec = [[3.2, -0.50], [7.6, -0.06], [12.0, -0.42], [16.4, -0.14], [20.8, -0.36]]
   for ws in wspec:
@@ -1350,6 +1363,12 @@ func _ready():
   build_sconces(tower_root)
   keeper = build_keeper(tower_root)
   build_exterior()
+  set_ext_lit(false)
+  EXT.root.visible = true
+  tower_root.visible = false
+  lantern.visible = false
+  wenv.environment = env_ext
+  print("[KTL] title exterior storm")
   build_hud()
   cam.far = 700
   add_child(cam)
@@ -1702,9 +1721,30 @@ func _process(dt):
 
   if ST.phase == "title":
     title_t += dt
-    camTh += dt * 0.05
-    cam.position = Vector3(cos(camTh) * 2.2, 2.6 + sin(t_now * 0.3) * 0.4, sin(camTh) * 2.2)
-    cam.look_at(Vector3(cos(1.1)*5.6, 2.0, sin(1.1)*5.6), Vector3.UP)
+    # the storm lives behind the card: rain, flash-caught rain, surf foam, cloud drift
+    var imt = EXT.rain_mesh
+    imt.clear_surfaces()
+    imt.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
+    for i3 in EXT.rain_drops.size():
+      var d3 = EXT.rain_drops[i3]
+      d3.y -= dt * 26.0
+      d3.x += dt * 3.6
+      if d3.y < 0:
+        d3 = Vector3(randf_range(-50,70), 45 + randf_range(0,4), d3.z)
+      EXT.rain_drops[i3] = d3
+      imt.surface_add_vertex(d3)
+      imt.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
+    imt.surface_end()
+    EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * (1.0 + 1.6 * flashV))
+    for i5 in EXT.foam.size():
+      var fma = EXT.foam[i5]
+      fma.albedo_color.a = 0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))
+    for i4 in EXT.clouds.size():
+      var c3 = EXT.clouds[i4]
+      c3.position.x += dt * (0.6 + i4 * 0.15)
+      if c3.position.x > 110: c3.position.x = -110
+    cam.position = Vector3(sin(t_now * 0.05) * 3.0, 4.2 + sin(t_now * 0.1) * 0.5, 28)
+    cam.look_at(Vector3(8, 12, -50), Vector3.UP)
     return
 
   if ST.phase == "pause":
@@ -2039,6 +2079,7 @@ func _process(dt):
           tower_root.visible = false
           lantern.visible = false
           EXT.root.visible = true
+          set_ext_lit(true)
           wenv.environment = env_ext
           sfx("bell", -8.0)
           print("[KTL] ending")
@@ -2048,6 +2089,7 @@ func _process(dt):
     ST.endT += dt
     EXT.beams.rotation.y += dt * 0.55
     EXT.road_mat.uv1_offset.y += dt * 0.4
+    EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * (1.0 + 1.6 * flashV))
     # rain rebuild
     var im = EXT.rain_mesh
     im.clear_surfaces()

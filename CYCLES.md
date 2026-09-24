@@ -547,3 +547,19 @@ vs peek-settled.png eyeballed: the view swings around the curve under drag and e
 back; honest caveat - the auto player keeps climbing between shots, so the A/B also
 carries follow-camera motion, but the trace + visible swing confirm the mechanic.
 verify3 WON ok on the final build. pck 92,256 bytes.
+
+## Cycle 45 - 2026-09-24 ~17:30 IST - PASS
+Built: the title opens on the premise. Instead of the interior stair orbit, the title
+now shows the tower from the sea in the storm - rain falling, surf foam breathing,
+clouds drifting, lightning firing (the strike system was never phase-gated), the rain
+catching each flash (alpha x(1+1.6*flashV)) - and the lamp DARK: set_ext_lit(false)
+cools the lamp glass (cold albedo+emission, energy 0.10), kills the glow sprite, the
+lamp OmniLight and the beams. set_ext_lit(true) at the ending transition restores the
+lit payoff from cycle 43. begin() already cut back to the interior untouched.
+Caught: first pass left the glass ALBEDO warm - the lamp read lit against the dark
+sky in the title frame, contradicting the premise. Fixed by tinting albedo cold too.
+Verified: title-storm.png / title-flash.png eyeballed - dark tower, cold lamp glass,
+rain reads; flash frame only subtly brighter (honest caveat: rain-flash is a motion
+read). Trace "[KTL] title exterior storm" + lightning traces on title confirm the
+state. verify3 WON ok on the final build (auto begin still cuts to interior and wins).
+pck 93,136 bytes.

@@ -29,6 +29,8 @@ var LANDHOLD = false
 var squashV = 1.0
 var dust_t = 0.0
 var dust_sp = null
+var kshadow = null
+var ksh_h = 0.0
 var SHAKEHOLD = false
 var shake_cur = 0.0
 var sputter_t = 0.0
@@ -2279,6 +2281,20 @@ func _process(dt):
     # keeper pose
     var kg = keeper.g
     kg.position = Vector3(R_SHELL * cos(ST.th), ST.y, R_SHELL * sin(ST.th))
+    # the lantern's contact shadow: grounds the keeper, and on a jump it stays
+    # on the step below - separating and fading so airborne height reads
+    if kshadow == null:
+      kshadow = Sprite3D.new()
+      kshadow.texture = tower.glow_tex
+      kshadow.shaded = false
+      kshadow.rotation.x = -PI / 2.0
+      add_child(kshadow)
+    var ksh_floor = floor_at(ST.th, ST.y + 0.3)
+    ksh_h = max(0.0, ST.y - ksh_floor)
+    kshadow.visible = ST.phase == "play" or ST.phase == "relight"
+    kshadow.position = Vector3(R_SHELL * cos(ST.th), ksh_floor + 0.04, R_SHELL * sin(ST.th))
+    kshadow.modulate = Color(0, 0, 0, 0.42 * clamp(1.0 - ksh_h / 2.6, 0.0, 1.0))
+    kshadow.scale = Vector3(1, 1, 1) * (1.15 + ksh_h * 0.3)
     kg.rotation.y = -ST.th - PI/2.0 + (PI/2.0 if ST.faceDir > 0 else -PI/2.0)
     kg.rotation.x = -gust_dir * gust_vis * 0.14 * ST.faceDir  # lean into the gust
     # wind streaks stream with the gust, invisible in calm air

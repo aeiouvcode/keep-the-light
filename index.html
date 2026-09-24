@@ -97,8 +97,36 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":97296,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":100560,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
 const GODOT_THREADS_ENABLED = false;
+// Split-pack loader: the pck ships as base64 text parts (index.pck.b64.N) so it can
+// deploy through text-only channels. fetch() for index.pck is answered from the
+// reassembled bytes; when no parts exist (local dev), the real index.pck loads.
+const PCK_PARTS = ['index.pck.b64.0', 'index.pck.b64.1', 'index.pck.b64.2', 'index.pck.b64.3'];
+let pckPartsPromise = null;
+function getPckParts() {
+	if (pckPartsPromise) return pckPartsPromise;
+	pckPartsPromise = Promise.all(PCK_PARTS.map((p) => window.__ktlRealFetch(p).then((r) => (r.ok ? r.text() : null)))).then((texts) => {
+		if (texts.every((t) => t === null)) return null;
+		if (texts.some((t) => t === null)) throw new Error('KEEP THE LIGHT: a pack part is missing');
+		const bin = atob(texts.join('').replace(/\s+/g, ''));
+		const bytes = new Uint8Array(bin.length);
+		for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+		return bytes;
+	});
+	return pckPartsPromise;
+}
+window.__ktlRealFetch = window.fetch.bind(window);
+window.fetch = function (url, opts) {
+	const s = String(url);
+	if (s.endsWith('index.pck') || s.includes('index.pck?')) {
+		return getPckParts().then((bytes) => {
+			if (bytes === null) return window.__ktlRealFetch(url, opts);
+			return new Response(bytes, {'status': 200, 'headers': {'Content-Type': 'application/octet-stream'}});
+		});
+	}
+	return window.__ktlRealFetch(url, opts);
+};
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {

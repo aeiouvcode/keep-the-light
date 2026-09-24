@@ -814,7 +814,7 @@ func build_keeper(root):
   lampg.add_child(lglow)
   g.add_child(lampg)
   root.add_child(g)
-  return {g=g, legs=legs, armL=armL, lamp=lampg, lglow=lglow, flame=flame}
+  return {g=g, legs=legs, armL=armL, lamp=lampg, lglow=lglow, flame=flame, head=head, cap=cap, brim=brim}
 
 # ---------- HUD ----------
 var ui = {}
@@ -1287,12 +1287,19 @@ var shard_flare_traced = false
 var drop_flare_traced = false
 var storm_gives_traced = false
 var touch_hint_done = false
+var idle_t = 0.0
+var look_up = 0.0
+var idle_traced = false
 var vignette_traced = false
 var VIGHOLD = false
 var FLASHHOLD = false
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
+var gust_pending = 0.0
+var gap_air = false
+var gap_cleared = false
+var gap_glow = 0.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
 var thunder_pitch = 1.0
@@ -1531,9 +1538,9 @@ func reset_run():
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
-  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false
+  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
-  ST.gust_v = 0.0; gust_t = 6.0
+  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
@@ -1717,14 +1724,21 @@ func _process(dt):
   # with altitude. Modest next to walk speed (OMEGA 1.2), so it costs footing
   # and seconds, never control.
   gust_t -= dt
-  if gust_t <= 0 and ST.phase == "play":
+  # the storm warns before it shoves: a rising whistle ~0.85s ahead of the push,
+  # so a braced player can stop walking. the hit lands with the same direction.
+  if gust_pending > 0.0:
+    gust_pending -= dt
+    if gust_pending <= 0.0 and ST.phase == "play":
+      ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * gust_dir
+      sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
+      gust_vis = 1.0
+      print("[KTL] gust hits dir=", gust_dir, " v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
+  if gust_t <= 0 and ST.phase == "play" and gust_pending <= 0.0:
     gust_t = randf_range(lerp(11.0, 6.0, storm_h), lerp(17.0, 9.0, storm_h))
-    ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * (1.0 if randf() < 0.5 else -1.0)
-    gust_dir = sign(ST.gust_v)
-    sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
-    print("[KTL] gust dir=", gust_dir, " lean=", snapped(-gust_dir * 0.14 * ST.faceDir, 0.01), " h=", snapped(storm_h, 0.01))
-    gust_vis = 1.0
-    print("[KTL] gust v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01), " lean=", snapped(-gust_dir * 1.0 * 0.3, 0.01), " rain_db=", -13.0 + 2.0 * 1.0)
+    gust_dir = 1.0 if randf() < 0.5 else -1.0
+    gust_pending = 0.85
+    sfx("gust", -19.0, 1.3)  # the warning whistle - quieter, higher
+    print("[KTL] gust warning dir=", gust_dir)
   # distant foghorn, rare and soft - the world beyond the tower
   horn_t -= dt
   if horn_t <= 0 and ST.phase in ["title", "play", "relight"]:
@@ -1799,6 +1813,16 @@ func _process(dt):
       if keys.get(KEY_D, false) or keys.get(KEY_RIGHT, false): dir += 1
       if abs(stick_x) > 0.15: dir = stick_x
       if AUTO: dir = auto_dir()
+    # idle: after a still stretch the keeper lifts the lamp and looks up the stair
+    if ST.phase == "play" and dir == 0.0 and ST.grounded:
+      idle_t += dt
+    else:
+      if idle_t >= 4.5: idle_traced = false
+      idle_t = 0.0
+    look_up = lerp(look_up, 1.0 if idle_t > 4.5 else 0.0, min(1.0, dt * 2.5))
+    if look_up > 0.9 and not idle_traced:
+      idle_traced = true
+      print("[KTL] idle look up th=", snapped(ST.th, 0.1))
     var OMEGA = 1.2
     var gv = ST.gust_v if (ST.phase == "play" and ST.grounded) else 0.0  # wind pushes footing, never flight
     ST.th = max(0.0, ST.th + (dir * OMEGA + gv) * dt)
@@ -1820,11 +1844,21 @@ func _process(dt):
       ST.coyote -= dt
       ST.vy -= 24.0 * dt
       ST.y += ST.vy * dt
+      if ST.th > GAP[0] - 0.1 and ST.th < GAP[1] + 0.1: gap_air = true
       var fl2 = floor_at(ST.th, ST.y + 0.3)
       if ST.vy <= 0 and ST.y <= fl2:
         ST.y = fl2; ST.vy = 0.0; ST.grounded = true
         sfx("land", -10.0)
         buzz(8)
+        # the made-it beat: clearing the stair gap earns a soft low note and a
+        # brief lantern bloom - the scariest jump deserves a payoff
+        if gap_air and ST.th > GAP[1] and not gap_cleared:
+          gap_cleared = true
+          gap_glow = 1.0
+          sfx("chime1", -15.0, 0.75)
+          buzz(20)
+          print("[KTL] gap cleared th=", snapped(ST.th, 0.1))
+        gap_air = false
         squashV = 0.78
         dust_t = 0.45
         print("[KTL] land squash th=", snapped(ST.th, 0.1))
@@ -1920,6 +1954,13 @@ func _process(dt):
       if not ST.warnedGap and ST.th > 9.55 and ST.th < GAP[0]:
         ST.warnedGap = true
         toast("A STAIR IS MISSING - JUMP")
+        if is_touch:
+          var jtw = create_tween()
+          jtw.tween_property(ui.jumpb, "modulate:a", 0.3, 0.28)
+          jtw.tween_property(ui.jumpb, "modulate:a", 1.0, 0.28)
+          jtw.tween_property(ui.jumpb, "modulate:a", 0.3, 0.28)
+          jtw.tween_property(ui.jumpb, "modulate:a", 1.0, 0.3)
+          print("[KTL] gap nudge pulses jump button")
         print("[KTL] gap nudge th=", snapped(ST.th, 0.1))
       if ST.th >= 19.35:
         if ST.panes >= 5:
@@ -1964,14 +2005,18 @@ func _process(dt):
     keeper.legs[0].rotation.x = sw
     keeper.legs[1].rotation.x = -sw
     keeper.armL.rotation.x = -sin(ST.walkPh) * 0.4 * (1.0 if dir != 0 else 0.0)
-    keeper.lamp.position.y = 0.72 + sin(ST.walkPh * 0.5) * 0.05
+    keeper.lamp.position.y = 0.72 + sin(ST.walkPh * 0.5) * 0.05 + 0.17 * look_up
+    keeper.head.rotation.x = -0.38 * look_up
+    keeper.cap.rotation.x = -0.38 * look_up
+    keeper.brim.rotation.x = -0.38 * look_up
     keeper.lamp.rotation.z = sin(ST.walkPh * 0.5 + 1.0) * 0.18 * sign(ST.faceDir) - gust_dir * gust_vis * 0.3
     var lp = keeper.lamp.global_position
     lantern.global_position = lp
     var oil_frac = clamp(ST.oil / 80.0, 0.0, 1.0)
     var flick = 1.0 + sin(t_now*13.0)*0.06 + sin(t_now*31.0)*0.04 + (sin(t_now*47.0)*0.15 if oil_frac < 0.2 else 0.0)
-    lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick * (1.0 - 0.3 * gust_vis)
-    keeper.lglow.modulate.a = 0.5 + 0.4 * oil_frac * flick
+    lantern.light_energy = (0.9 + 1.6 * oil_frac) * flick * (1.0 - 0.3 * gust_vis) * (1.0 + 0.5 * gap_glow)
+    gap_glow *= pow(0.15, dt)
+    keeper.lglow.modulate.a = 0.5 + 0.4 * oil_frac * flick + 0.35 * gap_glow
     var fsc = (0.5 + 0.5 * oil_frac) * (1.0 + (flick - 1.0) * 0.7)
     keeper.flame.scale = Vector3(fsc * (1.0 + 0.55 * gust_vis), fsc * (1.0 - 0.35 * gust_vis), fsc)  # wind flattens the flame
     keeper.flame.material_override.emission = Color(1.0, 0.85, 0.63).lerp(Color(1.0, 0.42, 0.22), 1.0 - oil_frac)

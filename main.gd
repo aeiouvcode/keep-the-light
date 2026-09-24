@@ -52,6 +52,10 @@ var gust_scale = 1.0
 var STORM_OVERRIDE = 0
 var title_lvl = 0
 var title_audio_t = 0.0
+var calm_sea = false
+var ship_traced = false
+var ship_trace_t = 0.0
+var SHIPZ = 0.0
 var startoil_given = false
 
 func surf_y(s, th):
@@ -1367,6 +1371,11 @@ func build_exterior():
   var win = Sprite3D.new(); win.texture = tower.glow_tex
   win.modulate = Color(1.0,0.79,0.54,0.9); win.scale = Vector3(0.9,0.9,1); win.position = Vector3(-0.4,1.7,0.7)
   ship.add_child(win)
+  var nav = Sprite3D.new(); nav.texture = tower.glow_tex
+  nav.modulate = Color(1.0,0.85,0.60,0.95); nav.scale = Vector3(0.7,0.7,1); nav.position = Vector3(0.8,5.2,0)
+  ship.add_child(nav)
+  EXT.ship_nav = nav
+  EXT.ship_win = win
   ship.position = Vector3(-58, 0, -105)
   g.add_child(ship)
   EXT.ship = ship; EXT.ship_vx = 3.0; EXT.ship_turn = 0.0; EXT.belled = false
@@ -1451,6 +1460,8 @@ func _ready():
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
+    if "shipz=" in q:
+      SHIPZ = float(q.split("shipz=")[1].split("&")[0])
   else:
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
@@ -1657,6 +1668,10 @@ func reset_run():
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
   storm_level = storm_level_get()
   apply_storm_audio()
+  EXT.ship.position = Vector3(-58, 0, -105)
+  EXT.ship.rotation = Vector3.ZERO
+  EXT.ship_win.scale = Vector3(0.9, 0.9, 1)
+  EXT.ship_nav.scale = Vector3(0.7, 0.7, 1)
   storm_base = 0.08 * (storm_level - 1)
   gust_scale = 1.0 - 0.1 * (storm_level - 1)
   var oil_eff = START_OIL if startoil_given else 80.0 - 4.0 * (storm_level - 1)
@@ -1965,11 +1980,27 @@ func _process(dt):
     if title_t - title_audio_t > 0.5:
       title_audio_t = title_t
       var lvl_now = storm_level_get()
-      if lvl_now != title_lvl:
+      var calm_now = lvl_now == 1 and storms_held_get() > 0
+      if lvl_now != title_lvl or calm_now != calm_sea:
         title_lvl = lvl_now
+        calm_sea = calm_now
         apply_storm_audio()
-        print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped(0.85 + 0.15 * title_lvl, 0.01))
+        if calm_sea:
+          print("[KTL] calm sea held=", storms_held_get())
+        print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped((0.85 + 0.15 * title_lvl) * (0.8 if calm_sea else 1.0), 0.01))
     var rainx = 0.85 + 0.15 * title_lvl
+    if calm_sea:
+      rainx *= 0.8
+    # the held keeper's reward drifts by: the distant ship crosses the visible horizon
+    if calm_sea:
+      EXT.ship.visible = true
+      EXT.ship_win.scale = Vector3(2.2, 2.2, 1)
+      EXT.ship_nav.scale = Vector3(1.6, 1.6, 1)
+      var ship_z = -340.0 if SHIPZ == 0.0 else -SHIPZ
+      EXT.ship.position = Vector3(-70.0 + fmod(title_t * 0.4, 55.0), 0.12 + sin(title_t * 0.8) * 0.06, ship_z)
+      if title_t - ship_trace_t > 3.0:
+        ship_trace_t = title_t
+        print("[KTL] calm ship at screen ", cam.unproject_position(EXT.ship.position), " z=", ship_z)
     # the storm lives behind the card: rain, flash-caught rain, surf foam, cloud drift
     var imt = EXT.rain_mesh
     imt.clear_surfaces()

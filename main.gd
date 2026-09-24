@@ -50,6 +50,7 @@ var storm_level = 1
 var storm_base = 0.0
 var gust_scale = 1.0
 var STORM_OVERRIDE = 0
+var title_lvl = 0
 var startoil_given = false
 
 func surf_y(s, th):
@@ -1650,6 +1651,7 @@ func reset_run():
   wenv.environment = env_tower
   if players.has("drone"): players.drone.stop()
   # first-run touch hint: the faint stick reads decorative until it is named
+  var hint_was_pending = is_touch and not touch_hint_done
   if is_touch and not touch_hint_done:
     touch_hint_done = true
     toast("DRAG THE LEFT SIDE TO CLIMB")
@@ -1659,6 +1661,9 @@ func reset_run():
     stw.tween_property(ui.stick, "color:a", 0.42, 0.5)
     stw.tween_property(ui.stick, "color:a", 0.14, 0.6)
     print("[KTL] touch hint shown")
+  if storm_level > 1 and not hint_was_pending:
+    toast("STORM " + roman(storm_level) + " - THE SEA IS HIGHER")
+    print("[KTL] storm toast lvl=", storm_level)
   print("[KTL] begin")
 
 func ignite():
@@ -1898,24 +1903,28 @@ func _process(dt):
 
   if ST.phase == "title":
     title_t += dt
+    if title_lvl == 0:
+      title_lvl = storm_level_get()
+      print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped(0.85 + 0.15 * title_lvl, 0.01))
+    var rainx = 0.85 + 0.15 * title_lvl
     # the storm lives behind the card: rain, flash-caught rain, surf foam, cloud drift
     var imt = EXT.rain_mesh
     imt.clear_surfaces()
     imt.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
     for i3 in EXT.rain_drops.size():
       var d3 = EXT.rain_drops[i3]
-      d3.y -= dt * 26.0
-      d3.x += dt * 3.6
+      d3.y -= dt * 26.0 * rainx
+      d3.x += dt * 3.6 * rainx
       if d3.y < 0:
         d3 = Vector3(randf_range(-50,70), 45 + randf_range(0,4), d3.z)
       EXT.rain_drops[i3] = d3
       imt.surface_add_vertex(d3)
       imt.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
     imt.surface_end()
-    EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * (1.0 + 1.6 * flashV))
+    EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * rainx * (1.0 + 1.6 * flashV))
     for i5 in EXT.foam.size():
       var fma = EXT.foam[i5]
-      fma.albedo_color.a = 0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))
+      fma.albedo_color.a = (0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))) * rainx
     for i4 in EXT.clouds.size():
       var c3 = EXT.clouds[i4]
       c3.position.x += dt * (0.6 + i4 * 0.15)

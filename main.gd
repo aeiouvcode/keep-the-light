@@ -51,6 +51,7 @@ var storm_base = 0.0
 var gust_scale = 1.0
 var STORM_OVERRIDE = 0
 var title_lvl = 0
+var title_audio_t = 0.0
 var startoil_given = false
 
 func surf_y(s, th):
@@ -228,6 +229,22 @@ func loop_sfx(name, vol_db):
   players[name] = p
   p.play()
   return p
+
+func apply_storm_audio():
+  # the storm has a voice: deeper wind bed, denser rain and surf as the level rises
+  var L = storm_level_get()
+  var windp = 1.0 - 0.025 * (L - 1)
+  var windv = -17.0 + 0.4 * (L - 1)
+  var rainv = -13.0 + 0.5 * (L - 1)
+  var surfv = -20.0 + 0.5 * (L - 1)
+  if players.get("wind"):
+    players["wind"].pitch_scale = windp
+    players["wind"].volume_db = windv
+  if players.get("rain"):
+    players["rain"].volume_db = rainv
+  if players.get("surf"):
+    players["surf"].volume_db = surfv
+  print("[KTL] storm audio lvl=", L, " windp=", snapped(windp, 0.001), " rainv=", snapped(rainv, 0.1), " surfv=", snapped(surfv, 0.1))
 
 func buzz(pattern):
   # phone haptics under the tactile beats - touch devices only, honors the mute toggle
@@ -1618,6 +1635,7 @@ func reset_run():
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
   storm_level = storm_level_get()
+  apply_storm_audio()
   storm_base = 0.08 * (storm_level - 1)
   gust_scale = 1.0 - 0.1 * (storm_level - 1)
   var oil_eff = START_OIL if startoil_given else 80.0 - 4.0 * (storm_level - 1)
@@ -1856,7 +1874,7 @@ func _process(dt):
     gust_pending -= dt
     if gust_pending <= 0.0 and ST.phase == "play":
       ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * gust_dir
-      sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1))
+      sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1) * (1.0 - 0.03 * (storm_level - 1)))
       gust_vis = 1.0
       print("[KTL] gust hits dir=", gust_dir, " v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
   if gust_t <= 0 and ST.phase == "play" and gust_pending <= 0.0:
@@ -1903,9 +1921,13 @@ func _process(dt):
 
   if ST.phase == "title":
     title_t += dt
-    if title_lvl == 0:
-      title_lvl = storm_level_get()
-      print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped(0.85 + 0.15 * title_lvl, 0.01))
+    if title_t - title_audio_t > 0.5:
+      title_audio_t = title_t
+      var lvl_now = storm_level_get()
+      if lvl_now != title_lvl:
+        title_lvl = lvl_now
+        apply_storm_audio()
+        print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped(0.85 + 0.15 * title_lvl, 0.01))
     var rainx = 0.85 + 0.15 * title_lvl
     # the storm lives behind the card: rain, flash-caught rain, surf foam, cloud drift
     var imt = EXT.rain_mesh

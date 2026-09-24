@@ -220,6 +220,12 @@ func loop_sfx(name, vol_db):
   p.play()
   return p
 
+func buzz(pattern):
+  # phone haptics under the tactile beats - touch devices only, honors the mute toggle
+  if muted: return
+  if not OS.has_feature("web") or not is_touch: return
+  JavaScriptBridge.eval("if(navigator.vibrate)navigator.vibrate(" + JSON.stringify(pattern) + ")")
+
 # ---------- procedural textures ----------
 func tex_brick():
   var img = Image.create(512, 512, false, Image.FORMAT_RGBA8)
@@ -1564,6 +1570,7 @@ func reset_run():
 
 func ignite():
   sfx("ignite", -4.0)
+  buzz([20, 40, 20, 40, 60])
   loop_sfx("drone", -16.0)
   tower.core.material_override = mat_glow(Color(1.0,0.91,0.72), 2.2)
   tower.core_glow.modulate.a = 0.95
@@ -1593,6 +1600,7 @@ func start_relight():
 func fail_run():
   ST.phase = "fail"
   sfx("gutter", -4.0)
+  buzz([50, 80, 50])
   var tw = create_tween()
   tw.tween_property(ui.dim, "color:a", 0.92, 1.2)
   # the lamp gutters out in visible throes before the dark takes the stair
@@ -1816,6 +1824,7 @@ func _process(dt):
       if ST.vy <= 0 and ST.y <= fl2:
         ST.y = fl2; ST.vy = 0.0; ST.grounded = true
         sfx("land", -10.0)
+        buzz(8)
         squashV = 0.78
         dust_t = 0.45
         print("[KTL] land squash th=", snapped(ST.th, 0.1))
@@ -1884,6 +1893,7 @@ func _process(dt):
           ST.oil = min(ST.oil + 5.0, 95.0)
           ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
           sfx("chime" + str(ST.panes), -6.0)
+          buzz(15)
           var bs = []
           for bi in 7:
             var sp = Sprite3D.new()

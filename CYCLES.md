@@ -645,3 +645,15 @@ hasTouch, actual touchscreen tap on BEGIN) - "[KTL] touch hint shown" fired with
 begin. touch-hint.png eyeballed at the pulse peak: toast top-center, stick visibly
 brightened bottom-left, JUMP bottom-right, keeper mid door-swing. verify3 WON ok.
 pck 96,528 bytes.
+
+## Cycle 52 - 2026-09-24 ~20:20 IST - PASS
+Built: phone haptics under the tactile beats. A buzz() helper (web + touch only,
+honors the mute toggle, navigator.vibrate via JavaScriptBridge) now backs: pane
+pickup 15ms, jump landing 8ms, ignite [20,40,20,40,60]ms, fail gutter [50,80,50]ms.
+Desktop and muted sessions never call vibrate.
+Verified: REAL calls recorded on the exported build under touch emulation (iPhone
+UA, hasTouch, navigator.vibrate wrapped pre-load) on a full winning auto run:
+7 buzzes = 5x15 (five pickups) + 1x8 (the gap landing) + 1x[20,40,20,40,60]
+(ignite). Honest caveat: the fail pattern is code-verified only - a winning run
+never gutters. No visual change; the recorded call patterns are the evidence.
+verify3 WON ok on the final build. pck 96784 bytes.

@@ -783,3 +783,20 @@ removed -> no remembers trace, sub plain. Frames: c60-title-best.png, c60-title-
 real prior win - the write path (win_run -> localStorage) is unchanged and already
 covered by earlier win-card verification.
 Grade: PASS.
+
+## Cycle 61 - split-pack deploy (mechanics, not a game change)
+CF migration paused: github.io stays the live home and the pck must deploy normally
+again, but the token bridge is banned (credential rule), the upload widget is dead on
+any size, and the web editor is text-only. Proven-route fix (per Astronaut/suikei):
+the pck ships as base64 text parts. index.pck split into 4 x 25,140-byte chunks (each
+a multiple of 3 so the b64 strings concatenate cleanly), pushed as index.pck.b64.0-3.
+index.html gained a split-pack loader: window.fetch is wrapped before the Engine is
+created; a request for index.pck is answered from the reassembled bytes (fetch parts
+-> atob -> Uint8Array -> Response). If every part 404s (local dev), it falls through
+to the real index.pck, so the local loop is unchanged; a partial part failure throws
+honestly instead of silently loading a stale pack.
+Verified: with build/index.pck renamed away from the server root (a plain fetch would
+404), verify3 ran a full auto win on the patched shell - chimes=5 won=true, WON ok -
+so the game booted and completed on bytes assembled from the parts alone. Roundtrip
+b64 decode == original pck asserted at split time.
+Grade: PASS (deploy unblocked without touching the credential rule).

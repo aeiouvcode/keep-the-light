@@ -989,3 +989,27 @@ ktl_calm reads 0, ktl_storm reads 1, fail card "THE OIL RAN OUT ON THE STAIR
 (real capstone from stored storm V, no override): "storm held total=1 calm
 earned", ktl_calm reads 1.
 Grade: PASS.
+
+## Cycle 69 - five storms, five nights (storm visual identity)
+The escalation ladder made each storm harder but they all LOOKED like the same
+night: level drove oil, gusts, audio and intensity, never the sky. The fantasy
+says five seas; now each sea owns a night.
+Built: apply_storm_identity(lvl), called on begin_run and on title level
+change. A five-step tint palette (I indigo-neutral, II cold teal, III violet,
+IV rose, V bruised ember) multiplies the tower and exterior environment
+backgrounds and fog, the moon key light, every window sky quad (materials
+collected at build), and the exterior moon + halo emissions (base colors
+banked at build). The sky also darkens 7.5% per level - the storm eats the
+sky. The ending's dawn lerp still overrides the exterior at the win moment,
+and the title re-applies on the next level change, so no state goes stale.
+Failed then fixed: first palette was too polite - the L1/L3/L5 title strip
+barely differed. Strengthened tints ~1.5x and the dark factor 0.055 -> 0.075.
+Second strip: storm V reads clearly (darker, ember cast); mid-levels stay
+quiet on the TITLE (the tower blocks the moon there) but carry in-game, where
+the violet III and ember V stairwells are unmistakable against the indigo I.
+Verified (final build, pck 107,024): verify3 WON ok. Split-pack boot with the
+pck hidden. Identity traces at title for storm=1/3/5 (tint + dark values
+correct) and in-game at begin for storm=3 and storm=5. Frames eyeballed at
+480x800: the L1/L3/L5 title strip, the storm-III violet stairwell, the
+storm-V ember stairwell with the correct oil=64 budget on the HUD.
+Grade: PASS (title mid-level subtlety noted honestly above).

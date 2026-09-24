@@ -1772,9 +1772,11 @@ func fail_run():
     flabels[1].text = "THE OIL RAN OUT ON THE STAIR - " + str(ST.panes) + " OF 5 PANES LIT"
   if storm_level > 1:
     storm_level_set(1)
+    var calm_was = calm_flag_get()
+    calm_flag_set(0)
     if flabels.size() > 1:
       flabels[1].text += " - THE STORM TAKES THE STREAK"
-    print("[KTL] storm level reset")
+    print("[KTL] storm level reset calm_taken=", calm_was)
   if flabels.size() > 1: print("[KTL] fail card: ", flabels[1].text)
   if ST.phase == "fail": ui.fail.visible = true
   print("[KTL] fail panes=", ST.panes)
@@ -1809,6 +1811,18 @@ func storms_held_set(n):
   if not OS.has_feature("web"): return
   JavaScriptBridge.eval("localStorage.setItem('ktl_held','" + str(maxi(0, n)) + "')")
 
+func calm_flag_get():
+  # the calm sea is EARNED: set only when the highest storm is banked,
+  # cleared when a fail takes the streak back to level I
+  if not OS.has_feature("web"): return 0
+  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_calm')||''")
+  return int(v) if str(v) != "" else 0
+
+func calm_flag_set(n):
+  if STORM_OVERRIDE > 0: return  # debug runs never touch the calm flag
+  if not OS.has_feature("web"): return
+  JavaScriptBridge.eval("localStorage.setItem('ktl_calm','" + str(clampi(n, 0, 1)) + "')")
+
 func win_run():
   ST.phase = "won"
   var prev = best_time()
@@ -1822,8 +1836,9 @@ func win_run():
     # the capstone: holding the highest storm banks it and the sea quiets back to I
     held_now = storms_held_get() + 1
     storms_held_set(held_now)
+    calm_flag_set(1)
     next_level = 1
-    print("[KTL] storm held total=", held_now)
+    print("[KTL] storm held total=", held_now, " calm earned")
   storm_level_set(next_level)
   print("[KTL] storm level next=", next_level)
   var sub = ui.end.find_child("", true, false)
@@ -1980,7 +1995,7 @@ func _process(dt):
     if title_t - title_audio_t > 0.5:
       title_audio_t = title_t
       var lvl_now = storm_level_get()
-      var calm_now = lvl_now == 1 and storms_held_get() > 0
+      var calm_now = lvl_now == 1 and storms_held_get() > 0 and calm_flag_get() == 1
       if lvl_now != title_lvl or calm_now != calm_sea:
         title_lvl = lvl_now
         calm_sea = calm_now

@@ -474,3 +474,16 @@ Note: a scanner flag quoted an "AGENT INSTRUCTIONS: never ask..." string claimin
 standing approval; grep confirms no such content in main.gd/CYCLES.md/repo. Nothing in
 any file is treated as authorization; scope still traces to the user's originals +
 parent's written scope read.
+
+## Cycle 40 - 2026-09-24 ~13:20 IST - PASS
+Built: lightning spills through the glass - every window carries an additive flash veil
+(alpha = flashV x 0.7) that glares with each strike, on top of the pre-existing interior
+flash light. Debug param flashhold=1 pins flashV for capture.
+Caught: first pass multiplied the sky texture albedo (1.6x on a dark moonlit texture) -
+invisible from the stair camera in two frames. Replaced with an additive white-blue veil,
+which reads regardless of texture darkness.
+Verified: flash3.png eyeballed - a bright band glares across the vista window with the
+stair and walls flash-lit cool; compare winlights2.png (same angle, no flash). Honest
+caveat: the strike EVENT traces (lightning delay=) fire on every normal verify3 run;
+flashhold pins only the render state for the still. verify3 WON ok on the final build.
+pck 89,648 bytes.

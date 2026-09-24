@@ -461,6 +461,20 @@ func build_tower(root):
     skym.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     skym.albedo_texture = vista if wf > 1.0 else sky
     skyq.material_override = skym
+    var fq = MeshInstance3D.new()
+    var fpm = PlaneMesh.new(); fpm.size = Vector2(1.75 * wf, 3.1)
+    fq.mesh = fpm
+    var fmt = StandardMaterial3D.new()
+    fmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    fmt.cull_mode = BaseMaterial3D.CULL_DISABLED
+    fmt.albedo_color = Color(0.82, 0.88, 1.0, 0.0)
+    fmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    fmt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+    fq.material_override = fmt
+    fq.position.z = 0.14
+    g.add_child(fq)
+    if not tower.has("win_flash"): tower.win_flash = []
+    tower.win_flash.append(fmt)
     skyq.position.z = 0.06
     g.add_child(skyq)
     var rainq = MeshInstance3D.new()
@@ -1200,6 +1214,7 @@ var ambient_hi_traced = false
 var shard_flare_traced = false
 var vignette_traced = false
 var VIGHOLD = false
+var FLASHHOLD = false
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
@@ -1227,6 +1242,7 @@ func _ready():
     CLICKLOG = "clicklog=1" in q
     FINECAP = "finecap=1" in q
     VIGHOLD = "vighold=1" in q
+    FLASHHOLD = "flashhold=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1620,6 +1636,11 @@ func _process(dt):
   if flashV > 0.01: flashV *= pow(0.02, dt)
   else: flashV = 0.0
   flash_light.light_energy = flashV * 2.0
+  if FLASHHOLD: flashV = 0.85
+  # lightning spills through the glass: a bright veil flares over every window
+  if tower.has("win_flash"):
+    for fm2 in tower.win_flash:
+      fm2.albedo_color.a = min(flashV, 1.0) * 0.7
   # window rain scroll
   gust_vis *= pow(0.1, dt)
   if GUSTHOLD and ST.phase == "play": gust_vis = 1.0  # debug: hold the gust visuals for capture

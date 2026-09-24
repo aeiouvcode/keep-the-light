@@ -1112,14 +1112,18 @@ func build_hud():
   var tbest = best_time()
   var tlevel = storm_level_get()
   var tsu = ui.title.get_child(1).get_child(0).get_child(2)
+  var held_frag = ""
+  var held_t = storms_held_get()
+  if held_t > 0:
+    held_frag = " - " + str(held_t) + " HELD"
   if tlevel > 1:
     # a streak in progress: the title names the storm awaiting the keeper
-    tsu.text = "STORM " + roman(tlevel) + (" - BEST " + fmt_time(tbest) if tbest > 0.0 else " - THE SEA TESTS YOU AGAIN")
-    print("[KTL] title remembers storm=", roman(tlevel))
+    tsu.text = "STORM " + roman(tlevel) + (" - BEST " + fmt_time(tbest) if tbest > 0.0 else " - THE SEA TESTS YOU AGAIN") + held_frag
+    print("[KTL] title remembers storm=", roman(tlevel), " held=", held_t)
   elif tbest > 0.0:
     # a return visit remembers: the title sub carries the best climb (ktl_best in localStorage)
-    tsu.text = "A STORM-NIGHT ERRAND - BEST " + fmt_time(tbest)
-    print("[KTL] title remembers best=", fmt_time(tbest))
+    tsu.text = "A STORM-NIGHT ERRAND - BEST " + fmt_time(tbest) + held_frag
+    print("[KTL] title remembers best=", fmt_time(tbest), " held=", held_t)
   var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_begin)
   ui.end = mk_card("THE LIGHT HOLDS", "",
     "The beam turns again over black water. Somewhere out in the rain, a ship sets her course for home.", b2)
@@ -1762,6 +1766,17 @@ func storm_level_set(n):
   if not OS.has_feature("web"): return
   JavaScriptBridge.eval("localStorage.setItem('ktl_storm','" + str(clampi(n, 1, STORM_MAX)) + "')")
 
+func storms_held_get():
+  # the capstone tally: how many times the highest storm has been held
+  if not OS.has_feature("web"): return 0
+  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_held')||''")
+  return maxi(0, int(v) if str(v) != "" else 0)
+
+func storms_held_set(n):
+  if STORM_OVERRIDE > 0: return  # debug runs never touch the tally
+  if not OS.has_feature("web"): return
+  JavaScriptBridge.eval("localStorage.setItem('ktl_held','" + str(maxi(0, n)) + "')")
+
 func win_run():
   ST.phase = "won"
   var prev = best_time()
@@ -1770,6 +1785,13 @@ func win_run():
     JavaScriptBridge.eval("localStorage.setItem('ktl_best','" + str(ST.elapsed) + "')")
     print("[KTL] new best ", fmt_time(ST.elapsed))
   var next_level = mini(storm_level + 1, STORM_MAX)
+  var held_now = 0
+  if storm_level == STORM_MAX and STORM_OVERRIDE == 0:
+    # the capstone: holding the highest storm banks it and the sea quiets back to I
+    held_now = storms_held_get() + 1
+    storms_held_set(held_now)
+    next_level = 1
+    print("[KTL] storm held total=", held_now)
   storm_level_set(next_level)
   print("[KTL] storm level next=", next_level)
   var sub = ui.end.find_child("", true, false)
@@ -1786,6 +1808,8 @@ func win_run():
       labels[1].text += " - STORM " + roman(next_level) + " AWAITS"
     else:
       labels[1].text += " - THE HIGHEST STORM HELD"
+      if held_now > 0:
+        labels[1].text += " - THE SEA QUIETS"
     print("[KTL] win card: ", labels[1].text)
   ui.end.visible = true
   print("[KTL] won elapsed=", ST.elapsed, " is_best=", is_best)

@@ -1311,7 +1311,7 @@ func reset_run():
       dtw.tween_interval(0.35)
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
-  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0
+  ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
@@ -1452,6 +1452,8 @@ func _process(dt):
   # storm escalation: the higher the climb, the worse the storm. Strikes come
   # more often and the wind swell rises with altitude (still soft - sound bar).
   var storm_h = clamp(ST.y / 19.0, 0.0, 1.0)
+  if ST.phase == "play":
+    storm_h = clamp(storm_h - 0.55 * exp(-pow(ST.th - 14.5, 2.0) / 2.5), 0.0, 1.0)  # the eye of the storm
   thunder_t -= dt
   if thunder_t <= 0:
     thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h))
@@ -1568,6 +1570,10 @@ func _process(dt):
         print("[KTL] beat ", ST.beats + 1, " th=", snapped(ST.th, 0.1), " msg=", beat_msg[ST.beats])
         toast(beat_msg[ST.beats])
         ST.beats += 1
+      if not ST.eyeSeen and abs(ST.th - 14.5) < 0.35:
+        ST.eyeSeen = true
+        toast("THE AIR GOES STILL")
+        print("[KTL] eye th=", snapped(ST.th, 0.1), " h=", snapped(storm_h, 0.01))
       if ST.oil < 16 and not ST.lowWarned:
         ST.lowWarned = true
         toast("THE OIL IS LOW")

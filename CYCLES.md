@@ -330,3 +330,13 @@ positions - RUN-A panes 1.8/7.2/9.8/15.7/18.2 drops 4.6/12/16.6 vs RUN-B panes
 1.6/7.9/9.1/15.6/18.1 drops 4.2/12/17.1 - DIFFERENT (PASS); the auto player adapts, so
 verify3 WON ok. No frames (layout trace-verified; a jittered shard reads identically to a
 fixed one in a still). pck 83,200 bytes.
+
+## Cycle 29 - 2026-09-24 ~07:47 IST - PASS
+Built: the eye of the storm - a gaussian lull (depth 0.55, centered th 14.5) subtracted
+from the storm escalation, so thunder, wind, and gust strength all go quiet for a few
+steps after "THE STORM IS THICK HERE", then return worse toward the lens. A one-shot toast
+marks it: "THE AIR GOES STILL".
+Verified: eye trace fires once at the lull center with the dipped value in evidence -
+"eye th=14.3 h=0.22" where raw altitude would read ~0.75 - while the surrounding series
+shows h=0.4 below and h=1 at the top: rise, dip, full storm. eye.png eyeballed: toast over
+the keeper high on the stair, 4 pips lit. verify3 WON ok. pck 83,440 bytes.

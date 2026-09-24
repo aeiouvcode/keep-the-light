@@ -800,3 +800,33 @@ Verified: with build/index.pck renamed away from the server root (a plain fetch 
 so the game booted and completed on bytes assembled from the parts alone. Roundtrip
 b64 decode == original pck asserted at split time.
 Grade: PASS (deploy unblocked without touching the credential rule).
+
+## Cycle 62 - the escalation ladder (deep cycle for the 7 AM push)
+Critique: the game is a one-shot errand. Once you have won, you have seen everything;
+there is no reason for a second climb. The highest-impact gap is structural: no loop.
+Built: the storm remembers a streak. Consecutive wins raise the storm I-V; a fail
+takes the streak. Persistence in localStorage (ktl_storm, 1-5). Per level L:
+storm base +0.08*(L-1) on storm_h (the storm starts stronger at the door), oil
+80-4*(L-1) (80/76/72/68/64), gust cadence x(1-0.1*(L-1)). Title names the awaiting
+storm ("STORM III - BEST 3:20", or "STORM III - THE SEA TESTS YOU AGAIN" without a
+best); a HUD chip names the storm past I; the win card appends "STORM IV AWAITS" or
+"THE HIGHEST STORM HELD" at V; the fail card owns the reset: "THE STORM TAKES THE
+STREAK". Debug param storm=N overrides the level for tests and never touches the
+stored streak; startoil= keeps priority over level oil.
+Failed then fixed: (1) storm= parse off-by-one (substr mst+7 -> mst+6) made every
+override read as I; caught by pass A asserting L=3. (2) A pre-existing SECOND
+title-sub writer in _ready overwrote my build_hud block with the older
+"A STORM-NIGHT ERRAND - BEST M:SS" format - it also means cycle 60's title frame
+was rendered by that older writer, not the c60 block (identical visible text, so
+c60 could not tell them apart; user-visible behavior was right throughout). Removed
+the old writer; single source of truth, re-verified with frames.
+Verified (final build, pck 102,320): verify3 WON ok (L=1 regression). Pass A storm=3:
+L=3 oil=72 gustx=0.8, win, ktl_storm untouched (override guard). Pass B storm=5:
+L=5 oil=64 WON (hardest level winnable), "THE HIGHEST STORM HELD". Pass C seeded 2:
+win -> ktl_storm=3, card "STORM III AWAITS". Pass C2: title remembers storm=III.
+Pass D standing fail at L=3: reset trace, ktl_storm=1, fail card "THE OIL RAN OUT ON
+THE STAIR - 0 OF 5 PANES LIT - THE STORM TAKES THE STREAK". Frames eyeballed: STORM
+III title, STORM II chip on the win frame, streak fail card (480x800). Harness note:
+the auto player wins even with startoil=5, so the fail test uses manual BEGIN and a
+standing keeper - the harness D-pass limitation is logged, not hidden.
+Grade: PASS.

@@ -377,3 +377,16 @@ Verified: gust trace "gust dir=1 lean=-0.14 h=0.38" with gusthold=1; lean.png ey
 flame reads flattened and wide vs the tall streak in rebuild-check.png, body lean subtle
 (~8 deg, honest note: reads in motion more than in a still). verify3 WON ok on the final
 build. pck 84,608 bytes.
+
+## Cycle 33 - 2026-09-24 ~09:47 IST - PASS
+Built: the air cools with altitude - the tower ambient lerps from warm
+(0.576,0.643,0.769 @ 0.75) at the base toward cold blue-grey (0.40,0.48,0.66 @ 0.53)
+at full storm, and fog density rises 0.018 -> 0.028, all driven by storm_h so the eye
+lull eases the air too. The climb now reads as ascending into worse weather, not just
+hearing it. Edge-triggered "ambient cold" trace at h>0.75.
+Verified: trace "ambient cold h=0.78" on the exported build; ambient-low.png (th 2.5,
+warm mauve bricks, strong lantern pool) vs ambient-high.png (th 17.7, cold blue-grey
+palette, hazier far wall, 4 pips lit) eyeballed - the cold shift reads clearly. Honest
+caveat: the two stills are different locations (stairwell vs gallery), so location
+lighting contributes; the trace confirms the ambient values themselves are applied.
+verify3 WON ok on the final build. pck 84,896 bytes.

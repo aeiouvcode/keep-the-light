@@ -1128,6 +1128,7 @@ var toast_t = 0.0
 var thunder_t = 7.0
 var gust_t = 6.0
 var gust_vis = 0.0
+var ambient_hi_traced = false
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
@@ -1495,6 +1496,16 @@ func _process(dt):
     players.wind.volume_db = -17.0 + 4.0 * storm_h
   if players.has("rain"):
     players.rain.volume_db = -13.0 + 2.0 * gust_vis
+  # the air itself cools with altitude - ambient shifts bluer and dimmer and
+  # the fog thickens as the storm builds, then eases again through the eye
+  env_tower.ambient_light_color = Color(0.576, 0.643, 0.769).lerp(Color(0.40, 0.48, 0.66), storm_h)
+  env_tower.ambient_light_energy = 0.75 - 0.22 * storm_h
+  env_tower.fog_density = 0.018 + 0.010 * storm_h
+  if storm_h > 0.75 and not ambient_hi_traced:
+    ambient_hi_traced = true
+    print("[KTL] ambient cold h=", snapped(storm_h, 0.01))
+  elif storm_h < 0.3 and ambient_hi_traced:
+    ambient_hi_traced = false
   # wind gusts push the keeper along the stair - the storm you feel, stronger
   # with altitude. Modest next to walk speed (OMEGA 1.2), so it costs footing
   # and seconds, never control.

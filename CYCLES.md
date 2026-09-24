@@ -958,3 +958,34 @@ over 30s. Control pass (keys cleared): no calm trace, rainx=1, ship hidden.
 Frames eyeballed at 480x800: full title plus a 4x crop of the horizon strip -
 the warm lit dot and faint hull smudge sit exactly on the horizon line.
 Grade: PASS.
+
+## Cycle 68 - the calm must be earned (fail-sea vs capstone-sea fix)
+Cycle 67 shipped a flaw: the calm-sea reward triggered on held > 0 and storm
+level I - but a FAIL at any level above I also resets the sea to I, so a keeper
+who failed down from storm IV returned to the same gentled rain and lit ship
+as one who banked the highest storm. The capstone's reward was being handed
+out for failure. The fail card even says THE STORM TAKES THE STREAK; the sea
+now agrees.
+Built: ktl_calm provenance flag in localStorage. Set only by the capstone
+branch (banking storm V, the existing STORM_OVERRIDE guard preserved) with a
+"calm earned" trace. Cleared in fail_run when a fail takes the streak, with
+"storm level reset calm_taken=N" trace. The title calm check now requires
+level I + held > 0 + the flag. Failing AT level I keeps an earned calm (no
+streak to take); winning off level I leaves the flag harmlessly set until the
+sea rises (the level check closes the calm by itself).
+Failed then fixed: no game-code failures. First export shrank the pck by
+13.6KB - icon.png had been moved out with the stray-PNG sweep; it is embedded
+in the pck, so restored it and re-exported (106,080). Then the fail harness
+repeated the c62 lesson: auto=1 always wins even with startoil=5, so pass C
+"failed" by winning (storm 3 -> 4, flag correctly untouched). Re-ran the fail
+pass with a manual BEGIN click and no auto player.
+Verified (final build, pck 106,080): verify3 WON ok. Split-pack boot with the
+pck hidden. Pass A (held=2, flag=1, level I): "calm sea held=2", rainx=0.8,
+ship drifting. Pass B (held=2, level I, NO flag): no calm trace, rainx=1, no
+ship - the failed-down keeper sees an ordinary level-I night. Pass C (manual
+begin, fail at storm III with flag=1): "storm level reset calm_taken=1",
+ktl_calm reads 0, ktl_storm reads 1, fail card "THE OIL RAN OUT ON THE STAIR
+- 0 OF 5 PANES LIT - THE STORM TAKES THE STREAK" (frame c68-fail.png). Pass D
+(real capstone from stored storm V, no override): "storm held total=1 calm
+earned", ktl_calm reads 1.
+Grade: PASS.

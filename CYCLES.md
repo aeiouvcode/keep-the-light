@@ -767,3 +767,19 @@ shift is 8% on filtered noise).
 pck 100,400 bytes. verify3 WON ok on the final build (fresh run, 23:23).
 Committed locally; text files pushed via web editor, pck held for the
 Cloudflare pair-deploy.
+
+## Cycle 60
+Critique: a returning player gets the same cold title as a stranger - the game stores
+best_time() in localStorage (ktl_best) but never uses it outside the win card. The
+premise card reads "the lamp is out" to someone who lit it last week.
+Built: the title remembers. When ktl_best exists, the title sub-line reads
+"A STORM-NIGHT ERRAND - BEST CLIMB M:SS" instead of plain "A STORM-NIGHT ERRAND";
+first visits and desktop/headless (best_time()==0) are untouched. One guarded branch
+after the title card build, trace "[KTL] title remembers best=M:SS".
+Verified: verify3 WON ok (regression). Harness: seeded localStorage ktl_best=192.4,
+reload -> trace best=3:12, frame shows the remembered sub; control pass with the key
+removed -> no remembers trace, sub plain. Frames: c60-title-best.png, c60-title-plain.png
+(480x800 phone portrait). Honest note: the seeded best is synthetic (192.4s), not a
+real prior win - the write path (win_run -> localStorage) is unchanged and already
+covered by earlier win-card verification.
+Grade: PASS.

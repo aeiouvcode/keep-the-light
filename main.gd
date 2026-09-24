@@ -1217,6 +1217,18 @@ func _ready():
   build_tower(tower_root)
   build_lamp_room(tower_root)
   build_shards(tower_root)
+  # wind streaks: thin unshaded quads that stream past during gusts
+  tower.wind_streaks = []
+  for wi in 6:
+    var ws = MeshInstance3D.new()
+    var wm = BoxMesh.new(); wm.size = Vector3(2.6, 0.045, 0.045)
+    var wmat = StandardMaterial3D.new()
+    wmat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+    wmat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+    wmat.albedo_color = Color(0.82, 0.88, 1.0, 0.0)
+    ws.mesh = wm; ws.material_override = wmat
+    tower_root.add_child(ws)
+    tower.wind_streaks.append({n=ws, ph=wi * 1.13})
   build_drops(tower_root)
   build_sconces(tower_root)
   keeper = build_keeper(tower_root)
@@ -1689,6 +1701,13 @@ func _process(dt):
     kg.position = Vector3(R_SHELL * cos(ST.th), ST.y, R_SHELL * sin(ST.th))
     kg.rotation.y = -ST.th - PI/2.0 + (PI/2.0 if ST.faceDir > 0 else -PI/2.0)
     kg.rotation.x = -gust_dir * gust_vis * 0.14 * ST.faceDir  # lean into the gust
+    # wind streaks stream with the gust, invisible in calm air
+    for wsd in tower.wind_streaks:
+      var wsn = wsd.n
+      var wth = ST.th + sin(wsd.ph * 7.0) * 1.6 + t_now * (2.6 + wsd.ph * 0.35) * gust_dir * gust_vis
+      wsn.position = Vector3((R_SHELL - 0.35) * cos(wth), ST.y + 0.6 + sin(wsd.ph * 3.1) * 1.3 + sin(t_now * 5.0 + wsd.ph) * 0.15, (R_SHELL - 0.35) * sin(wth))
+      wsn.rotation.y = -wth - PI/2.0
+      wsn.material_override.albedo_color.a = 0.52 * gust_vis * (0.55 + 0.45 * sin(t_now * 9.0 + wsd.ph * 5.0))
     # landing juice: squash on touch-down, stretch on jump, dust puff at the feet
     if LANDHOLD and ST.phase == "play": squashV = 0.78; dust_t = 0.3
     squashV = lerp(squashV, 1.0, min(1.0, dt * 9.0))

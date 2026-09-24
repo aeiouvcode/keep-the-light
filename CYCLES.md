@@ -403,3 +403,18 @@ eyeballed - the keeper reads squatter and wider than the upright rebuild-check f
 Honest caveat: 22% squash is subtle in a still and the grey dust puff is faint against
 the lantern pool; both read in motion. verify3 WON ok on the final build.
 pck 85,568 bytes.
+
+## Cycle 35 - 2026-09-24 ~10:47 IST - PASS
+Built: visible wind - six thin unshaded streak quads stream along the stair helix
+during gusts (alpha 0.52 x gust_vis with per-streak phase flicker, invisible in calm
+air). The gust used to be felt (push) and read on the keeper (lean, flattened flame)
+but the wind itself was invisible; now the air moves. First pass was too faint to read
+(0.30 alpha at the wall) - iterated to 0.52 alpha, longer quads, pulled 0.35 inside the
+shell radius.
+Verified: gusthold=1 frame (streaks.png) eyeballed - a pale streak clearly crosses the
+left of the stair with the flame flattened by the same pinned gust_vis (the shared
+driver corroborates the state); 6 streaks stream in motion. Honest caveat: the gust
+event trace did not fire inside the short capture window (first gust rolls at t=6s);
+render state was pinned by gusthold=1, so the frame verifies rendering, not the event
+timing - event timing itself is unchanged since cycle 24's traces. verify3 WON ok on
+the final build. pck 86,240 bytes.

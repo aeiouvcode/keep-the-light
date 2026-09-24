@@ -910,3 +910,26 @@ localStorage ktl_held=1 ktl_storm=1. Pass C (fresh load): "title remembers
 best=3:20 held=1". Frames eyeballed: the capstone win card (STORM V chip) and the
 quieted title carrying "1 HELD" (480x800).
 Grade: PASS.
+
+## Cycle 66 - the trophy row: one lit pane per storm held
+Critique: the capstone tally (c65) lives only in a text fragment. A held storm is
+the game's highest achievement - it deserves a mark in the game's own visual
+language, not another word.
+Built: a centered row of small lit diamond pips on the title card, one per banked
+storm, cycling the five sea-glass pane hues at 0.85 alpha with the HUD pips' 45
+degree diamond turn. Inserted between the sub line and the body on the title card
+only, capped at 10 (the sub text already carries the exact number). First visits
+and zero-tally players see no row at all.
+Failed then fixed: no code failures. First harness contaminated its own control:
+all three passes shared one browser profile, so pass B (the zero-tally control)
+read pass A's seeded ktl_held=3. Re-ran with incognito contexts per pass and an
+explicit key-clearing control (remove, not just omit) - the standing
+localStorage-flow lesson applied.
+Verified (final build, pck 104,768): verify3 WON ok. Split-pack boot with the pck
+hidden. Pass A (3 held): "title held pips=3", "title remembers best=3:20 held=3",
+frame shows three hue-cycled diamonds. Pass B (control, keys cleared): no pips
+trace, no remembers trace - a truly clean first-visit title. Pass C (1 held +
+storm III): "title held pips=1", "title remembers storm=III held=1", frame shows
+one amber diamond under "STORM III - BEST 3:20 - 1 HELD". Frames eyeballed at
+480x800.
+Grade: PASS.

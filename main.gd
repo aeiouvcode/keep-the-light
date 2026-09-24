@@ -234,6 +234,31 @@ func loop_sfx(name, vol_db):
   p.play()
   return p
 
+# each storm owns a night: the five seas tint the sky, the moon and the dark itself
+const STORM_TINTS = [
+  Color(1.0, 1.0, 1.0),     # I - the indigo they know
+  Color(0.80, 1.02, 0.94),  # II - cold teal
+  Color(0.90, 0.80, 1.12),  # III - violet
+  Color(1.10, 0.83, 0.85),  # IV - rose
+  Color(1.18, 0.70, 0.60),  # V - bruised ember
+]
+func apply_storm_identity(lvl):
+  var t = STORM_TINTS[clampi(lvl, 1, STORM_MAX) - 1]
+  var dark = 1.0 - 0.075 * (clampi(lvl, 1, STORM_MAX) - 1)  # the storm eats the sky
+  var bgt = Color(0.047, 0.067, 0.098) * t * dark
+  env_tower.background_color = bgt
+  env_tower.fog_light_color = bgt
+  var bge = Color(0.039, 0.059, 0.094) * t * dark
+  env_ext.background_color = bge
+  env_ext.fog_light_color = bge
+  if hemi_moon_ref: hemi_moon_ref.light_color = Color(0.729, 0.788, 0.910) * t
+  if tower.has("sky_mats"):
+    for sm in tower.sky_mats: sm.albedo_color = t
+  if EXT.has("moon_mats"):
+    for i2 in EXT.moon_mats.size():
+      EXT.moon_mats[i2].emission = EXT.moon_base[i2] * t
+  print("[KTL] storm identity lvl=", lvl, " tint=", t, " dark=", snapped(dark, 0.01))
+
 func apply_storm_audio():
   # the storm has a voice: deeper wind bed, denser rain and surf as the level rises
   var L = storm_level_get()
@@ -510,6 +535,8 @@ func build_tower(root):
     skym.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     skym.albedo_texture = vista if wf > 1.0 else sky
     skyq.material_override = skym
+    if not tower.has("sky_mats"): tower.sky_mats = []
+    tower.sky_mats.append(skym)
     var fq = MeshInstance3D.new()
     var fpm = PlaneMesh.new(); fpm.size = Vector2(1.75 * wf, 3.1)
     fq.mesh = fpm
@@ -1194,6 +1221,8 @@ func build_exterior():
   g.add_child(road)
   EXT.road_mat = rm
   # moon + halo (unfogged unshaded quads)
+  EXT.moon_mats = []
+  EXT.moon_base = []
   for spec in [[20.0, 0.93, 0.95, 0.98, 0.95], [60.0, 0.62, 0.71, 0.85, 0.22]]:
     var q = MeshInstance3D.new()
     var qp = PlaneMesh.new(); qp.size = Vector2(spec[0], spec[0])
@@ -1204,6 +1233,8 @@ func build_exterior():
     qm.albedo_texture = tower.glow_tex
     qm.emission_enabled = true
     qm.emission = Color(spec[1], spec[2], spec[3])
+    EXT.moon_mats.append(qm)
+    EXT.moon_base.append(Color(spec[1], spec[2], spec[3]))
     qm.emission_energy_multiplier = 1.2
     qm.emission_texture = tower.glow_tex
     qm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -1389,6 +1420,7 @@ var cam = Camera3D.new()
 var wenv = WorldEnvironment.new()
 var env_tower = Environment.new()
 var env_ext = Environment.new()
+var hemi_moon_ref = null
 var flash_light = DirectionalLight3D.new()
 var lantern = OmniLight3D.new()
 var flashV = 0.0
@@ -1499,6 +1531,7 @@ func _ready():
   wenv.environment = env_tower
   add_child(wenv)
   var hemi_moon = DirectionalLight3D.new()
+  hemi_moon_ref = hemi_moon
   hemi_moon.light_color = Color(0.729, 0.788, 0.910)
   hemi_moon.light_energy = 0.7
   hemi_moon.rotation = Vector3(-0.9, 0.5, 0)
@@ -1672,6 +1705,7 @@ func reset_run():
   EXT.ship.rotation = Vector3.ZERO
   EXT.ship_win.scale = Vector3(0.9, 0.9, 1)
   EXT.ship_nav.scale = Vector3(0.7, 0.7, 1)
+  apply_storm_identity(storm_level)
   storm_base = 0.08 * (storm_level - 1)
   gust_scale = 1.0 - 0.1 * (storm_level - 1)
   var oil_eff = START_OIL if startoil_given else 80.0 - 4.0 * (storm_level - 1)
@@ -2000,6 +2034,7 @@ func _process(dt):
         title_lvl = lvl_now
         calm_sea = calm_now
         apply_storm_audio()
+        apply_storm_identity(title_lvl)
         if calm_sea:
           print("[KTL] calm sea held=", storms_held_get())
         print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped((0.85 + 0.15 * title_lvl) * (0.8 if calm_sea else 1.0), 0.01))

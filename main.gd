@@ -33,6 +33,7 @@ var BURSTHOLD = false
 var bursts = []
 var muted = false
 var CLICKLOG = false
+var FINECAP = false
 var DOORSHUT = false
 var DOOROPEN = false
 var DROPTEST = false
@@ -641,6 +642,23 @@ func build_drops(root):
     d.node = g
     tower.drops.append(g)
 
+func build_sconces(root):
+  # unlit wall sconces - the keeper's lantern warms each one as he passes
+  tower.sconces = []
+  var darkm2 = mat_lam(Color(0.118, 0.125, 0.161))
+  for th in [2.5, 5.0, 8.5, 11.5, 14.5, 17.5]:
+    var y = floor_at(th, 99.0) + 1.55
+    var g = Node3D.new()
+    var cup = box(Vector3(0.12, 0.16, 0.12), darkm2); g.add_child(cup)
+    var gl = Sprite3D.new()
+    gl.texture = tower.glow_tex
+    gl.modulate = Color(1.0, 0.72, 0.42, 0.06)
+    gl.scale = Vector3(0.8, 0.8, 1)
+    g.add_child(gl)
+    g.position = Vector3(6.72 * cos(th), y, 6.72 * sin(th))
+    root.add_child(g)
+    tower.sconces.append({th=th, y=y, glow=gl})
+
 # ---------- keeper ----------
 func build_keeper(root):
   var g = Node3D.new()
@@ -1134,6 +1152,7 @@ func _ready():
     SHAKEHOLD = "shakehold=1" in q
     BURSTHOLD = "bursthold=1" in q
     CLICKLOG = "clicklog=1" in q
+    FINECAP = "finecap=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1193,6 +1212,7 @@ func _ready():
   build_lamp_room(tower_root)
   build_shards(tower_root)
   build_drops(tower_root)
+  build_sconces(tower_root)
   keeper = build_keeper(tower_root)
   build_exterior()
   build_hud()
@@ -1443,7 +1463,7 @@ func _process(dt):
   dt = min(dt, 0.05) * (3.0 if FAST else 1.0)
   if AUTO:
     trace_t += dt
-    if trace_t > 2.0:
+    if trace_t > (0.35 if FINECAP else 2.0):
       trace_t = 0.0
       print("[KTL] trace phase=", ST.phase, " th=", snapped(ST.th,0.01), " y=", snapped(ST.y,0.01), " oil=", int(ST.oil), " panes=", ST.panes)
   var t_now = Time.get_ticks_msec() / 1000.0
@@ -1689,6 +1709,12 @@ func _process(dt):
       if not d3.visible: continue
       d3.position.y = drops[i3].y + sin(t_now * 2.6 + i3 * 1.7) * 0.08
       d3.get_child(1).modulate.a = 0.5 + sin(t_now * 4.2 + i3 * 2.3) * 0.25
+    for sc in tower.sconces:
+      var dth2 = abs(ST.th - sc.th) * R_SHELL
+      var dy2 = abs(ST.y + 1.0 - sc.y)
+      var prox = clamp(1.0 - Vector2(dth2, dy2).length() / 2.4, 0.0, 1.0)
+      sc.glow.modulate.a = 0.06 + 0.72 * prox * (0.85 + 0.15 * sin(t_now * 11.0))
+      sc.glow.scale = Vector3(0.8, 0.8, 1) * (1.0 + 0.6 * prox)
     # notch
     var next = null
     for p3 in panes:

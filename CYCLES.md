@@ -340,3 +340,16 @@ Verified: eye trace fires once at the lull center with the dipped value in evide
 "eye th=14.3 h=0.22" where raw altitude would read ~0.75 - while the surrounding series
 shows h=0.4 below and h=1 at the top: rise, dip, full storm. eye.png eyeballed: toast over
 the keeper high on the stair, 4 pips lit. verify3 WON ok. pck 83,440 bytes.
+
+## Cycle 30 - 2026-09-24 ~08:20 IST - PASS
+Built: wall sconces - six unlit sconce cups on the tower wall (th 2.5/5.0/8.5/11.5/14.5/
+17.5, just inside the bricks). Each warms from alpha 0.06 to ~0.78 as the keeper's lantern
+passes (proximity by arc + vertical distance, flicker-coupled, glow swells 60%). Pure
+depth-and-life lighting; no mechanic change.
+Caught: the capture window kept being skipped - trace cadence is 2.4 rad per line, wider
+than any honest capture window. Added a finecap=1 debug param (trace cadence 2.0s -> 0.35s)
+and the shot landed at th=2.64 on the first try. Also caught a silent no-op sed in my own
+script chain (a replace target that no longer existed) - grep before trusting an edit.
+Verified: sconce.png eyeballed - the just-passed sconce glows warm on the bricks at lower
+left, distinct from the lantern pool, the next sconce stays dark as designed. verify3
+WON ok on the final build. pck 84,160 bytes.

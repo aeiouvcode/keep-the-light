@@ -418,3 +418,18 @@ event trace did not fire inside the short capture window (first gust rolls at t=
 render state was pinned by gusthold=1, so the frame verifies rendering, not the event
 timing - event timing itself is unchanged since cycle 24's traces. verify3 WON ok on
 the final build. pck 86,240 bytes.
+
+## Cycle 36 - 2026-09-24 ~11:19 IST - PASS
+Built: moonlight through the gallery window - a slanted soft shaft from the window head
+down across the stair (additive glow quad), plus a slow cloud-drift shimmer on both the
+new shaft and the pre-existing floor spill (alpha breathes at 0.23 rad/s, out of phase).
+The moonlit vista used to stay inside the glass; now it lights the climb.
+Caught: first export inserted the shimmer block mid-sconce-loop and broke the build
+(Parse Error, sc/prox out of scope) - fixed placement, re-checked clean. Then the beam
+was invisible in two frames: backface-culled (PlaneMesh one-sided) at 0.2 alpha - fixed
+with CULL_DISABLED and 0.35.
+Verified: beam2.png eyeballed - cool pale wash on the wall right of the window frame and
+a blue-white patch on the stair ahead, clearly distinct from the warm lantern pool.
+Honest caveat: the shaft is a soft glow-quad, not a hard god-ray; the drift shimmer is
+motion-only (verified by code path, a still cannot show it). verify3 WON ok on the final
+build. pck 86,736 bytes.

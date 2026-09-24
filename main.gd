@@ -490,6 +490,24 @@ func build_tower(root):
       spill.rotation.z = 0.22
       spill.position = Vector3(0.2, -2.62, 2.0)
       g.add_child(spill)
+      tower.spill_mat = spmt
+      # a slanted shaft of moonlight from the window head down to the stair
+      var beam = MeshInstance3D.new()
+      var bm2 = PlaneMesh.new(); bm2.size = Vector2(3.0, 3.9)
+      beam.mesh = bm2
+      var bmt = StandardMaterial3D.new()
+      bmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+      bmt.cull_mode = BaseMaterial3D.CULL_DISABLED
+      bmt.albedo_texture = tower.glow_tex
+      bmt.albedo_color = Color(0.62, 0.74, 0.88, 0.35)
+      bmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+      bmt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+      beam.material_override = bmt
+      beam.rotation.x = -1.12
+      beam.rotation.z = 0.18
+      beam.position = Vector3(0.1, -0.7, 1.3)
+      g.add_child(beam)
+      tower.beam_mat = bmt
     place_radial(g, th4, 6.97, y4)
     if wf > 1.0:
       g.rotation.y += 0.38  # bay the gallery window toward the climbing approach
@@ -1779,6 +1797,9 @@ func _process(dt):
       var prox = clamp(1.0 - Vector2(dth2, dy2).length() / 2.4, 0.0, 1.0)
       sc.glow.modulate.a = 0.06 + 0.72 * prox * (0.85 + 0.15 * sin(t_now * 11.0))
       sc.glow.scale = Vector3(0.8, 0.8, 1) * (1.0 + 0.6 * prox)
+    if tower.has("spill_mat"):
+      tower.spill_mat.albedo_color.a = 0.4 * (0.85 + 0.15 * sin(t_now * 0.23))
+      tower.beam_mat.albedo_color.a = 0.35 * (0.75 + 0.25 * sin(t_now * 0.23 + 1.2))
     # notch
     var next = null
     for p3 in panes:

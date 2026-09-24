@@ -55,15 +55,26 @@ func floor_at(th, y_ref):
 var panes = []
 var drops = []
 func pane_pos_list():
+  # per-run jitter: every climb lays the panes a little differently (guard: never in a stair gap)
   var out = []
   for th in [1.7, 7.6, 9.5, 15.6, 18.3]:
-    out.append({th=th, y=floor_at(th, 99.0) + 1.15, got=false, node=null})
+    var th2 = th + (randf_range(-0.45, 0.45) if th < 18.0 else randf_range(-0.25, 0.25))
+    var guard = 0
+    while floor_at(th2, 99.0) < 0.5 and guard < 20:
+      th2 += 0.15
+      guard += 1
+    out.append({th=th2, y=floor_at(th2, 99.0) + 1.15, got=false, node=null})
   return out
 
 func drop_pos_list():
   var out = []
   for th in [4.5, 12.5, 17.0]:
-    out.append({th=th, y=floor_at(th, 99.0) + 0.95, got=false, node=null})
+    var th2 = th + randf_range(-0.6, 0.6)
+    var guard = 0
+    while floor_at(th2, 99.0) < 0.5 and guard < 20:
+      th2 += 0.15
+      guard += 1
+    out.append({th=th2, y=floor_at(th2, 99.0) + 0.95, got=false, node=null})
   return out
 
 func place_radial(n, th, r, y):

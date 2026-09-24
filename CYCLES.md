@@ -319,3 +319,14 @@ proved unreachable - same pattern the pause chip already lived with.
 Verified: traces "mute off / mute on / mute off" then on reload "mute restored off";
 mute-off.png shows the SOUND OFF toast + dimmed chip mid-climb; mute-title.png shows the
 chip restored dim on the title card. verify3 WON ok on the final build. pck 82,800 bytes.
+
+## Cycle 28 - 2026-09-24 ~07:16 IST - PASS
+Built: per-run jitter - pane and droplet th positions are randomized each run (panes
++-0.45, last pane +-0.25, drops +-0.6) with a floor guard that nudges any position out of
+a stair gap. Every climb lays the tower a little differently; the chase for the best time
+stays honest because the route shifts.
+Verified: two fast auto runs on the exported build collected all 5 panes with different
+positions - RUN-A panes 1.8/7.2/9.8/15.7/18.2 drops 4.6/12/16.6 vs RUN-B panes
+1.6/7.9/9.1/15.6/18.1 drops 4.2/12/17.1 - DIFFERENT (PASS); the auto player adapts, so
+verify3 WON ok. No frames (layout trace-verified; a jittered shard reads identically to a
+fixed one in a still). pck 83,200 bytes.

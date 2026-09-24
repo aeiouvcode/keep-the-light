@@ -1353,6 +1353,7 @@ var gust_pending = 0.0
 var gap_air = false
 var gap_cleared = false
 var balcony_traced = false
+var wind_marks = {}
 var gap_glow = 0.0
 var thunder_pending = -1.0
 var thunder_vol = -8.0
@@ -1595,7 +1596,7 @@ func reset_run():
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
-  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false
+  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false; wind_marks.clear()
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
@@ -1762,7 +1763,14 @@ func _process(dt):
     shake_cur = max(shake_cur, 1.0 - dist)
     print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01), " shake=", snapped(1.0 - dist, 0.01))
   if players.has("wind"):
-    players.wind.volume_db = -17.0 + 4.0 * storm_h
+    # the climb buys exposure: the wind bed lifts and thins with altitude
+    var alt = clamp(ST.y / 19.0, 0.0, 1.0)
+    players.wind.volume_db = -17.0 + 4.0 * storm_h + 3.0 * alt
+    players.wind.pitch_scale = 1.0 + 0.08 * alt
+    for mark in [5.0, 10.0, 15.0]:
+      if ST.phase == "play" and ST.y > mark and not wind_marks.has(mark):
+        wind_marks[mark] = true
+        print("[KTL] wind alt y=", snapped(ST.y, 0.1), " db=", snapped(players.wind.volume_db, 0.1), " alt=", snapped(alt, 0.01), " pitch=", snapped(players.wind.pitch_scale, 0.01))
   if players.has("rain"):
     players.rain.volume_db = -13.0 + 2.0 * gust_vis
   # the air itself cools with altitude - ambient shifts bluer and dimmer and

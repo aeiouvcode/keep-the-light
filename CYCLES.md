@@ -657,3 +657,54 @@ UA, hasTouch, navigator.vibrate wrapped pre-load) on a full winning auto run:
 (ignite). Honest caveat: the fail pattern is code-verified only - a winning run
 never gutters. No visual change; the recorded call patterns are the evidence.
 verify3 WON ok on the final build. pck 96784 bytes.
+
+## Cycle 53 - 2026-09-24 ~21:10 IST - PASS
+Built: the keeper looks up. After 4.5s idle in play (grounded, no input) he lifts
+the lantern and tips his head back toward the tower top - a small life beat that
+points at the goal. Eases in/out (lerp 2.5/s), resets on any input or landing.
+Caught: the first patch swallowed "if AUTO: dir = auto_dir()" into the idle branch -
+the auto player stood still and guttered (verify3 caught it: phase=fail, panes=0).
+Restored auto_dir() to its original slot in the input block; verify3 WON ok on the
+final build. Second lesson from the session: killed tool calls leave zombie chrome
+stacks that stall the box - detached (setsid) verification runs + log polling.
+Verified: REAL trace on the exported build - "[KTL] idle look up th=0" after begin,
+with begin/door shut traces intact. idle-look.png eyeballed: cap tipped back,
+lantern raised to chest height (vs hanging low in the cycle-51 frame).
+pck 97,296 bytes.
+
+## Cycle 54 - 2026-09-24 ~21:30 IST - PASS
+Built: the storm warns before it shoves. The gust synth's own comment claimed it
+"telegraphs a push of wind", but the sound fired WITH the push - no telegraph.
+Now: when a gust is drawn, a quieter higher whistle sounds ~0.85s ahead (trace
+"gust warning dir="), then the push lands with the same direction (trace
+"gust hits dir="). A braced player can stop walking before the shove. Direction
+is fixed at warning time so the warning never lies. Reset per run.
+Verified: REAL trace pair on the exported build (auto+fast): "gust warning dir=-1"
+then "gust hits dir=-1 v=-0.18 h=0.41", and the auto run still wins - gameplay
+unbroken. Audio/fairness cycle: traces are the honest evidence, no frame.
+verify3 WON ok on the final build. pck 97,376 bytes.
+Committed locally only (push rail pending session verification).
+
+## Cycle 55 - 2026-09-24 ~21:35 IST - PASS
+Built: the gap warning points at its button. Cycle 47 toasts "A STAIR IS MISSING
+- JUMP" and cycle 51 named the stick, but on phone nothing connected the warning
+to the JUMP control. Now the gap nudge also pulses the JUMP button (modulate
+1.0->0.3 twice) on touch devices. Desktop unchanged.
+Verified: REAL traces on the exported build under touch emulation - "gap nudge
+pulses jump button" + "gap nudge th=9.6"; gap-pulse.png eyeballed: toast up,
+keeper at the broken stubs, JUMP caught mid-pulse. verify3 WON ok (fresh run).
+pck 97,568 bytes. Committed locally only (push rail pending verification).
+
+## Cycle 56 - 2026-09-24 ~21:55 IST - PASS
+Built: the made-it beat. Clearing the stair gap earns a payoff: a soft low root
+note (chime1 at -15dB, pitch 0.75), a brief lantern bloom (light x1.5, glow +0.35
+alpha, ~1s decay), and a 20ms haptic buzz. Tracks airborne-over-gap, pays only on
+landing past it, once per run.
+Also fixed the pack: the build dir's exported PNGs were being imported and packed
+as dead ctex resources (the pck swung 97,568 -> 109,104 between builds depending
+on import-cache state). export preset now excludes build/*; pck deterministic at
+97,536 bytes and slightly leaner for the load (cycle-49 goal).
+Verified: REAL trace on the final exported build - "gap cleared th=10.4" after the
+nudge; gap-cleared.png eyeballed: keeper past the gap, lantern bloom visibly
+bright, toast still up. verify3 WON ok on the final build (fresh run, 21:55).
+Committed locally only (push rail pending session verification).

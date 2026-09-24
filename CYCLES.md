@@ -617,3 +617,4 @@ Fix (perceptual + branding; wire bytes are CDN-bound):
 Verified: check-only clean; verify3 WON ok on new build; branded loader frame eyeballed (navy + lamp + amber bar at 3s under 200KB/s throttle); title screen intact after boot.
 Honest note: download time is unchanged (~41s at 1.6Mbps) - the wasm is the floor without a custom engine build. The wait now shows the game's own face instead of engine branding. Repeat visits revalidate after max-age=600 (304s when unchanged).
 Grade: PARTIAL (experience fixed, raw load time not reducible in scope)
+Follow-up within cycle 49: splash img is #status-splash stretched to viewport; regenerated icon.png with zero body margin (first render had an 8px white page margin baked in, visible as a white L-band). canvas{background:#0a0f18} also added. Final: pck 95,632; verify3 WON ok; branded first paint on live measured 0.83s under 200KB/s throttle (was: gray Godot splash after JS boot, ready at 45.2s).

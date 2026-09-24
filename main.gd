@@ -29,6 +29,8 @@ var SHAKEHOLD = false
 var shake_cur = 0.0
 var sputter_t = 0.0
 var sputter_n = 0
+var BURSTHOLD = false
+var bursts = []
 var DOORSHUT = false
 var DOOROPEN = false
 var DROPTEST = false
@@ -1102,6 +1104,7 @@ func _ready():
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
     GUSTHOLD = "gusthold=1" in q
     SHAKEHOLD = "shakehold=1" in q
+    BURSTHOLD = "bursthold=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1542,6 +1545,17 @@ func _process(dt):
           ST.oil = min(ST.oil + 5.0, 95.0)
           ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
           sfx("chime" + str(ST.panes), -6.0)
+          var bs = []
+          for bi in 7:
+            var sp = Sprite3D.new()
+            sp.texture = tower.glow_tex
+            var hue2 = PANE_COLORS[i % PANE_COLORS.size()]
+            sp.modulate = Color(hue2.r, hue2.g, hue2.b, 0.95)
+            sp.scale = Vector3(0.35, 0.35, 1) * randf_range(0.7, 1.3)
+            sp.position = p.node.position + Vector3(randf_range(-0.15, 0.15), randf_range(-0.1, 0.2), randf_range(-0.15, 0.15))
+            tower_root.add_child(sp)
+            bs.append({n=sp, v=Vector3(randf_range(-1.6, 1.6), randf_range(1.2, 3.0), randf_range(-1.6, 1.6))})
+          bursts.append({parts=bs, t=0.0})
           toast("THE LAST PANE" if ST.panes == 5 else "PANE RECOVERED - +5S OIL")
           print("[KTL] pane ", ST.panes, " chime=chime", ST.panes, " th=", snapped(ST.th,0.1), " y=", snapped(ST.y,0.1))
       for d in drops:
@@ -1587,6 +1601,21 @@ func _process(dt):
     if oil_frac < 0.2 and not flameLow and ST.phase == "play":
       flameLow = true
       print("[KTL] flame low oil=", snapped(ST.oil, 0.1), " scale=", snapped(fsc, 0.01))
+    # pane bursts
+    var done_b = []
+    for bu in bursts:
+      if BURSTHOLD: bu.t = 0.25  # debug: pin mid-burst for capture
+      else: bu.t += dt
+      var alive = false
+      for pt in bu.parts:
+        pt.n.position += pt.v * dt
+        if not BURSTHOLD: pt.v.y -= 5.0 * dt
+        pt.n.modulate.a = max(0.0, 0.95 * (1.0 - bu.t / 0.7))
+        if pt.n.modulate.a > 0.01: alive = true
+      if not alive:
+        for pt in bu.parts: pt.n.queue_free()
+        done_b.append(bu)
+    for bu in done_b: bursts.erase(bu)
     # shards shimmer
     for i2 in tower.shards.size():
       var s2 = tower.shards[i2]

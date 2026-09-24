@@ -294,3 +294,14 @@ with the cycle-21 ember flame. Traces print for the first three pops only (no lo
 Verified: startoil=14 auto run shows "lowoil" then "sputter n=1 oil=13.9 / n=2 13.5 /
 n=3 13.1"; full-oil control run shows no sputter traces. Audio cycle - verification is
 traces (no frame). verify3 WON ok. pck 80,864 bytes.
+
+## Cycle 26 - 2026-09-24 ~06:19 IST - PASS
+Built: pane-burst sparkles - collecting a pane now throws 7 glow sprites in the pane's hue
+(up-and-out velocities, gravity pull, 0.7s fade) on top of the existing chime/toast/pip.
+Debug param bursthold=1 pins a burst mid-flight (t=0.25, alpha held, still drifting) for
+capture.
+Caught: first hold implementation froze the sprites at spawn INSIDE the lantern glare - the
+eyeballed frame showed toast + pip but no readable burst. Reworked the hold to pin
+mid-flight; second frame shows a clear scattered arc of amber sparkles by the window.
+Verified: burst1.png eyeballed (burst arc + toast + lit pip on the exported build); verify3
+WON ok (spawns and frees bursts across all 5 pickups without errors). pck 81,728 bytes.

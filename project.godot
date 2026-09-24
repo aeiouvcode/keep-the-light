@@ -1,0 +1,23 @@
+; KEEP THE LIGHT - Godot 4.3 project
+config_version=5
+
+[application]
+config/name="KEEP THE LIGHT"
+run/main_scene="res://main.tscn"
+config/icon="res://icon.png"
+boot_splash/bg_color=Color(0.039, 0.059, 0.094, 1)
+boot_splash/image="res://icon.png"
+boot_splash/fullsize=false
+boot_splash/use_filter=false
+
+[display]
+window/size/viewport_width=960
+window/size/viewport_height=600
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[rendering]
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true

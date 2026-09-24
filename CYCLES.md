@@ -603,3 +603,17 @@ Verified: relight-fly.png eyeballed - hued facets read in the lens mid-cutscene
 code-verified and shares the same PANE_COLORS mapping; the flight prism was not
 caught mid-air this run). relight-ignite.png: the blaze is intact. verify3 WON ok on
 the final build. pck 93,952 bytes.
+
+## Cycle 49 - load-time fix (user report: "loading takes forever")
+Measured baseline on live site, Fast-3G throttle (1.6Mbps, 150ms), cold cache, 480x800:
+- wire: ~8.3MB gz total (index.wasm 8,145,118 gz of 35.4MB raw - CDN does gzip; js 85,258; pck 91,944; html 2,022)
+- wasm download done at 41.5s, [KTL] ready at 45.2s
+- cache-control: max-age=600 on all assets
+- frames showed the DEFAULT GODOT SPLASH (gray #242424, blue Godot logo) for the whole wait - off-brand and reads as a stall.
+Fix (perceptual + branding; wire bytes are CDN-bound):
+- custom boot splash: line-art lighthouse lamp icon (new icon.png, cream on navy #0a0f18, amber lamp + beams) replaces the Godot logo via project.godot boot_splash/image+bg_color
+- export preset head_include CSS: navy page + status background from first paint, restyled progress bar (thin, rounded, amber #e8a94c on dark track)
+- index.html now 5,249 bytes (+402 for the style); pck 95,776 (+1.8KB icon ctex)
+Verified: check-only clean; verify3 WON ok on new build; branded loader frame eyeballed (navy + lamp + amber bar at 3s under 200KB/s throttle); title screen intact after boot.
+Honest note: download time is unchanged (~41s at 1.6Mbps) - the wasm is the floor without a custom engine build. The wait now shows the game's own face instead of engine branding. Repeat visits revalidate after max-age=600 (304s when unchanged).
+Grade: PARTIAL (experience fixed, raw load time not reducible in scope)

@@ -618,3 +618,17 @@ Verified: check-only clean; verify3 WON ok on new build; branded loader frame ey
 Honest note: download time is unchanged (~41s at 1.6Mbps) - the wasm is the floor without a custom engine build. The wait now shows the game's own face instead of engine branding. Repeat visits revalidate after max-age=600 (304s when unchanged).
 Grade: PARTIAL (experience fixed, raw load time not reducible in scope)
 Follow-up within cycle 49: splash img is #status-splash stretched to viewport; regenerated icon.png with zero body margin (first render had an 8px white page margin baked in, visible as a white L-band). canvas{background:#0a0f18} also added. Final: pck 95,632; verify3 WON ok; branded first paint on live measured 0.83s under 200KB/s throttle (was: gray Godot splash after JS boot, ready at 45.2s).
+
+## Cycle 50 - 2026-09-24 ~19:30 IST - PASS
+Built: the storm gives. Over the ending shot the weather the keeper beat now yields:
+rain thins (density 1.0->0.45, fall speed and alpha eased 40%), the night lifts from
+black toward storm navy (env_ext background + fog light lerp, ambient 0.5->0.75), and
+the rain audio bed fades -13dB -> -19dB. All computed from base constants each frame
+off ST.endT/7, so a fresh run always starts at full storm; begin() also resets the
+rain bed volume (was: a second run would have kept the faded bed).
+Verified: REAL traces on the exported build - "storm gives endT=3.6" between tower
+answers win=3 and win=4; give-early.png (endT~0) vs give-late.png (endT=4.5,
+give~0.64) eyeballed: rain streaks clearly thinned, sky lifted from black to navy,
+kindled windows + keeper at the lamp intact. Title still opens at full storm (the
+ending branch is the only writer of env_ext). verify3 WON ok on the final build.
+pck 96,288 bytes.

@@ -1279,6 +1279,7 @@ var gust_vis = 0.0
 var ambient_hi_traced = false
 var shard_flare_traced = false
 var drop_flare_traced = false
+var storm_gives_traced = false
 var vignette_traced = false
 var VIGHOLD = false
 var FLASHHOLD = false
@@ -1523,7 +1524,8 @@ func reset_run():
       dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
   ST.oil = START_OIL; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
-  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear()
+  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false
+  if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
   ST.gust_v = 0.0; gust_t = 6.0
   for i in panes.size():
     panes[i].got = false
@@ -2113,21 +2115,37 @@ func _process(dt):
 
   if ST.phase == "ending" or ST.phase == "won":
     ST.endT += dt
+    # the storm gives: over the ending the rain eases and the night lifts a shade,
+    # the lamp winning against the weather. computed from base constants each frame,
+    # so a fresh run (endT=0) always starts at full storm.
+    var give = clamp(ST.endT / 7.0, 0.0, 1.0)
+    var ease = 1.0 - 0.6 * give
+    if give > 0.5 and not storm_gives_traced:
+      storm_gives_traced = true
+      print("[KTL] storm gives endT=", snapped(ST.endT, 0.1))
+    env_ext.background_color = Color(0.039, 0.059, 0.094).lerp(Color(0.075, 0.098, 0.137), give)
+    env_ext.fog_light_color = env_ext.background_color
+    env_ext.ambient_light_energy = 0.5 + 0.25 * give
+    if players.has("rain") and players["rain"] != null:
+      players["rain"].volume_db = -13.0 - 6.0 * give
     EXT.beams.rotation.y += dt * 0.55
     EXT.road_mat.uv1_offset.y += dt * 0.4
-    EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * (1.0 + 1.6 * flashV))
+    EXT.rain_mat.albedo_color.a = min(1.0, (0.4 * ease) * (1.0 + 1.6 * flashV))
     EXT.keeperlamp.modulate.a = 0.7 + 0.2 * sin(t_now * 11.0) + 0.08 * sin(t_now * 29.0)
-    # rain rebuild
+    # rain rebuild (thinning as the storm gives)
+    var density = 1.0 - 0.55 * give
     var im = EXT.rain_mesh
     im.clear_surfaces()
     im.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
     for i3 in EXT.rain_drops.size():
       var d3 = EXT.rain_drops[i3]
-      d3.y -= dt * 26.0
-      d3.x += dt * 3.6
+      d3.y -= dt * 26.0 * ease
+      d3.x += dt * 3.6 * ease
       if d3.y < 0:
         d3 = Vector3(randf_range(-50,70), 45 + randf_range(0,4), d3.z)
       EXT.rain_drops[i3] = d3
+      if float(i3) / EXT.rain_drops.size() > density:
+        continue
       im.surface_add_vertex(d3)
       im.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
     im.surface_end()

@@ -1035,3 +1035,26 @@ on return to title the audio trace shows base volumes (rainv=-12, surfv=-19
 at level III) - the restore works. Audio is trace-verified; no frame can show
 it (a gallery-window pass frame was captured for context).
 Grade: PASS.
+
+## Cycle 71 - the lantern's contact shadow (and jumps that read)
+No shadow work existed anywhere in the game: the keeper floated on the lit
+stone, and with no real-time shadow casting (a deliberate perf choice for the
+phone) there was nothing to anchor him or to judge jump height by.
+Built: a soft contact shadow under the keeper - a flat-lying glow-texture
+sprite in pure black, parked on the floor surface under him each frame
+(floor_at, the same surface query the physics uses). It grounds him in the
+lantern pool. On a jump it stays on the step below while he rises: the alpha
+fades from 0.42 to zero across 2.6 units of height and the disc widens, so
+airborne height reads at a glance - a play-feel improvement, not just polish.
+Visible in play and the relight, gone at title and in the dark of a fail.
+Failed then fixed: no code failures. The verification harness missed the
+gap-jump frame - the phase traces print too slowly to catch a 0.7s jump
+window, and the fallback shot landed late. Grounded payoff is frame-verified;
+airborne behavior is verified by the jump math (vy 8.4, g 24, apex ~1.47 ->
+alpha ~0.18 with the disc separated ~1.5 units below) and honestly logged as
+not frame-captured.
+Verified (final build, pck 108,512): verify3 WON ok. Split-pack boot with the
+pck hidden. Grounded frame eyeballed at 480x800: the keeper stands anchored
+on a dark elliptical pool inside the lantern light - compare cycle 69's
+storm-V frame where his feet met bare bright stone.
+Grade: PASS.

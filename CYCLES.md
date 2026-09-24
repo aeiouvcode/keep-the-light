@@ -749,3 +749,21 @@ live there).
 pck 99,952 bytes.
 Committed locally; text files pushed via web editor, pck held for the
 Cloudflare pair-deploy.
+
+## Cycle 59 - 2026-09-24 ~23:25 IST - PASS (audio-only)
+Felt: the climb buys exposure. The wind bed now lifts and thins with altitude
+(+0..+3dB and pitch 1.00->1.08 across y=0..19), layered on the existing
+storm_h swell, so the last flights of stairs sound as exposed as they look.
+Base and title screen are untouched (alt factor is 0 at y=0); the ending keeps
+the top's keener air, which fits the lamp's exposed perch.
+Built: one altitude term in the wind loop's volume/pitch (computed live each
+frame, so begin() needs no reset); one-shot traces at y=5/10/15 for evidence.
+Verified: REAL traces on the final exported build - "wind alt y=5 db=-15.1
+alt=0.27 pitch=1.02", "y=10.6 db=-13.1 alt=0.56 pitch=1.04", "y=15.2 db=-13.3
+alt=0.8 pitch=1.06" (db rides storm_h moment-to-moment; alt and pitch climb
+monotonically), run WON. Audio-only cycle - no frame; traces are the evidence.
+Sound bar kept: synthesized only, +3dB over a -17dB bed, no new highs (pitch
+shift is 8% on filtered noise).
+pck 100,400 bytes. verify3 WON ok on the final build (fresh run, 23:23).
+Committed locally; text files pushed via web editor, pck held for the
+Cloudflare pair-deploy.

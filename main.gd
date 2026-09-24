@@ -1151,6 +1151,7 @@ var thunder_t = 7.0
 var gust_t = 6.0
 var gust_vis = 0.0
 var ambient_hi_traced = false
+var shard_flare_traced = false
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
@@ -1779,13 +1780,22 @@ func _process(dt):
         for pt in bu.parts: pt.n.queue_free()
         done_b.append(bu)
     for bu in done_b: bursts.erase(bu)
-    # shards shimmer
+    # shards shimmer - and flare as the lantern closes in (the light answers the light)
     for i2 in tower.shards.size():
       var s2 = tower.shards[i2]
       if not s2.visible: continue
       s2.rotation.y += dt * 1.4
       s2.position.y = panes[i2].y + sin(t_now * 2.0 + i2) * 0.10
-      s2.get_child(1).modulate.a = 0.65 + sin(t_now * 3.0 + i2 * 2.0) * 0.25
+      var sdth = abs(ST.th - panes[i2].th) * R_SHELL
+      var sdy = abs(ST.y + 1.0 - panes[i2].y)
+      var sprox = clamp(1.0 - Vector2(sdth, sdy).length() / 3.2, 0.0, 1.0)
+      s2.get_child(1).modulate.a = min(1.0, (0.65 + sin(t_now * 3.0 + i2 * 2.0) * 0.25) * (1.0 + 0.8 * sprox))
+      s2.get_child(1).scale = Vector3(1.7, 1.7, 1) * (1.0 + 0.5 * sprox)
+      if sprox > 0.5 and not shard_flare_traced:
+        shard_flare_traced = true
+        print("[KTL] shard flare pane=", i2 + 1, " prox=", snapped(sprox, 0.01))
+      elif sprox < 0.2 and shard_flare_traced:
+        shard_flare_traced = false
     for i3 in tower.drops.size():
       var d3 = tower.drops[i3]
       if not d3.visible: continue

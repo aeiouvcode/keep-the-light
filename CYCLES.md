@@ -433,3 +433,15 @@ a blue-white patch on the stair ahead, clearly distinct from the warm lantern po
 Honest caveat: the shaft is a soft glow-quad, not a hard god-ray; the drift shimmer is
 motion-only (verified by code path, a still cannot show it). verify3 WON ok on the final
 build. pck 86,800 bytes. (corrected next wake: 86,736 was the intermediate pre-cull-fix export)
+
+## Cycle 37 - 2026-09-24 ~11:47 IST - PASS
+Built: shard flare - unclaimed pane shards now swell as the lantern closes in (glow
+alpha x1.8 and halo scale x1.5 at zero distance, falling off over ~3.2 tower units by
+arc + vertical distance, clamped). The light answers the light; sconces warm, shards
+call. Edge-triggered "shard flare" trace at prox>0.5.
+Verified: trace "shard flare pane=1 prox=0.5" on the exported build; flare-near.png
+(th~6.9, one step from pane 2) eyeballed - the shard burns bright cyan-white with a wide
+halo, far beyond its idle shimmer; flare-far.png (th~5.5) keeps the shard around the
+curve (also catches the cycle-36 moonbeam wash top-right). Honest caveat: the A/B is
+near-frame vs idle frames from earlier cycles, not the same shard in one still.
+verify3 WON ok on the final build. pck 87,216 bytes.

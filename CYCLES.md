@@ -432,4 +432,4 @@ Verified: beam2.png eyeballed - cool pale wash on the wall right of the window f
 a blue-white patch on the stair ahead, clearly distinct from the warm lantern pool.
 Honest caveat: the shaft is a soft glow-quad, not a hard god-ray; the drift shimmer is
 motion-only (verified by code path, a still cannot show it). verify3 WON ok on the final
-build. pck 86,736 bytes.
+build. pck 86,800 bytes. (corrected next wake: 86,736 was the intermediate pre-cull-fix export)

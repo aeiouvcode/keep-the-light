@@ -884,3 +884,29 @@ win at 2 then KEEP IT AGAIN -> "storm audio lvl=3 windp=0.95 rainv=-12 surfv=-19
 trace-verified; there is no still-frame delta (honest note). Win card frame from
 this build shows STORM III AWAITS.
 Grade: PASS.
+
+## Cycle 65 - the capstone: storms held, and the sea quiets
+Critique: the escalation ladder had no ending. Beat storm V and every future run
+is storm V forever - the loop plateaus instead of breathing. A loop that never
+resolves quietly stops being a reason to come back.
+Built: beating storm V banks the run into a permanent tally (ktl_held in
+localStorage) and resets the awaiting storm to I. The win card becomes "THE
+HIGHEST STORM HELD - THE SEA QUIETS"; the title sub carries the tally forever
+("A STORM-NIGHT ERRAND - BEST 3:20 - 1 HELD", or "STORM III - BEST 3:20 - 2 HELD"
+mid-streak). The loop now breathes: rise I->V, hold the highest storm, the sea
+quiets, begin again with a mark that persists. Debug runs never bank: the whole
+capstone block is guarded by STORM_OVERRIDE == 0 (setters were already guarded;
+the trace + counter compute are guarded too, so a storm=5 test win prints no
+phantom "storm held total=").
+Failed then fixed: no code failures. One harness check-string bug of my own
+(matched 'total= 1' with a space; the trace joins without it) - the substance was
+green on every assertion. Logged, not hidden.
+Verified (final build, pck 104,304): verify3 WON ok (L=1 regression). Split-pack
+boot with the pck hidden. Pass A (override guard): storm=5 debug win -> card "THE
+HIGHEST STORM HELD" with NO "SEA QUIETS", no held trace, localStorage
+held=null/storm=null. Pass B (seeded storm V, real win): card "... - THE HIGHEST
+STORM HELD - THE SEA QUIETS", "storm held total=1", "storm level next=1",
+localStorage ktl_held=1 ktl_storm=1. Pass C (fresh load): "title remembers
+best=3:20 held=1". Frames eyeballed: the capstone win card (STORM V chip) and the
+quieted title carrying "1 HELD" (480x800).
+Grade: PASS.

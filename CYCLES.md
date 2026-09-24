@@ -390,3 +390,16 @@ palette, hazier far wall, 4 pips lit) eyeballed - the cold shift reads clearly. 
 caveat: the two stills are different locations (stairwell vs gallery), so location
 lighting contributes; the trace confirms the ambient values themselves are applied.
 verify3 WON ok on the final build. pck 84,896 bytes.
+
+## Cycle 34 - 2026-09-24 ~10:16 IST - PASS
+Built: landing juice - the keeper squashes on touch-down (scale y 0.78, x/z +10%,
+decaying back over ~0.3s), stretches on jump (y 1.14), and kicks a faint dust puff at
+the feet (grey glow sprite, 0.45s expand+fade). The stairs now answer the keeper's
+weight. Debug param landhold=1 pins the squash for capture; real landings trace
+"land squash".
+Verified: REAL land trace on the exported build - "?auto=1&fast=1" plus a synthetic
+Space keypress produced "[KTL] land squash th=2" (jump up, touch-down traced); landhold.png
+eyeballed - the keeper reads squatter and wider than the upright rebuild-check frame.
+Honest caveat: 22% squash is subtle in a still and the grey dust puff is faint against
+the lantern pool; both read in motion. verify3 WON ok on the final build.
+pck 85,568 bytes.

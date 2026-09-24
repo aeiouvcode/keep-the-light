@@ -25,6 +25,10 @@ const PANE_COLORS = [Color(1.0,0.78,0.42), Color(0.45,0.85,0.80), Color(0.95,0.5
 var AUTO = false
 var FAST = false
 var GUSTHOLD = false
+var LANDHOLD = false
+var squashV = 1.0
+var dust_t = 0.0
+var dust_sp = null
 var SHAKEHOLD = false
 var shake_cur = 0.0
 var sputter_t = 0.0
@@ -1150,6 +1154,7 @@ func _ready():
     var mo = q.find("startoil=")
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0)
     GUSTHOLD = "gusthold=1" in q
+    LANDHOLD = "landhold=1" in q
     SHAKEHOLD = "shakehold=1" in q
     BURSTHOLD = "bursthold=1" in q
     CLICKLOG = "clicklog=1" in q
@@ -1588,6 +1593,9 @@ func _process(dt):
       if ST.vy <= 0 and ST.y <= fl2:
         ST.y = fl2; ST.vy = 0.0; ST.grounded = true
         sfx("land", -10.0)
+        squashV = 0.78
+        dust_t = 0.45
+        print("[KTL] land squash th=", snapped(ST.th, 0.1))
         if fl2 < 0.5 and ST.th > 1.5:
           toast("THE STAIR IS BEHIND YOU")
           print("[KTL] fell th=", snapped(ST.th, 0.1))
@@ -1596,6 +1604,7 @@ func _process(dt):
       if ST.grounded or ST.coyote > 0:
         ST.grounded = false; ST.coyote = 0.0; ST.vy = 8.4; jumpBuf = 0.0
         sfx("jump", -10.0)
+        squashV = 1.14
     if ST.phase == "play":
       ST.elapsed += dt
       ST.oil -= dt
@@ -1680,6 +1689,23 @@ func _process(dt):
     kg.position = Vector3(R_SHELL * cos(ST.th), ST.y, R_SHELL * sin(ST.th))
     kg.rotation.y = -ST.th - PI/2.0 + (PI/2.0 if ST.faceDir > 0 else -PI/2.0)
     kg.rotation.x = -gust_dir * gust_vis * 0.14 * ST.faceDir  # lean into the gust
+    # landing juice: squash on touch-down, stretch on jump, dust puff at the feet
+    if LANDHOLD and ST.phase == "play": squashV = 0.78; dust_t = 0.3
+    squashV = lerp(squashV, 1.0, min(1.0, dt * 9.0))
+    kg.scale = Vector3(1.0 + (1.0 - squashV) * 0.45, squashV, 1.0 + (1.0 - squashV) * 0.45)
+    if dust_sp == null:
+      dust_sp = Sprite3D.new()
+      dust_sp.texture = tower.glow_tex
+      dust_sp.modulate = Color(0.75, 0.72, 0.68, 0.0)
+      add_child(dust_sp)
+    if dust_t > 0.0:
+      dust_t -= dt
+      dust_sp.global_position = kg.position + Vector3(0, 0.25, 0)
+      var dk = 1.0 - dust_t / 0.45
+      dust_sp.scale = Vector3(1, 1, 1) * (0.5 + dk * 1.6)
+      dust_sp.modulate.a = 0.4 * (1.0 - dk)
+    else:
+      dust_sp.modulate.a = 0.0
     var wob = abs(sin(ST.walkPh)) if ST.grounded else 0.0
     kg.position.y += wob * 0.05
     var sw = sin(ST.walkPh) * 0.7 * (1.0 if dir != 0 and ST.grounded else 0.0)

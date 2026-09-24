@@ -31,6 +31,8 @@ var sputter_t = 0.0
 var sputter_n = 0
 var BURSTHOLD = false
 var bursts = []
+var muted = false
+var CLICKLOG = false
 var DOORSHUT = false
 var DOOROPEN = false
 var DROPTEST = false
@@ -818,6 +820,21 @@ func build_hud():
   pauseb.pressed.connect(toggle_pause)
   layer.add_child(pauseb)
   ui.pauseb = pauseb
+  var muteb = Button.new()
+  muteb.text = "S"
+  var mbs = chip_style()
+  muteb.add_theme_stylebox_override("normal", mbs)
+  muteb.add_theme_stylebox_override("hover", mbs)
+  muteb.add_theme_stylebox_override("pressed", mbs)
+  muteb.add_theme_color_override("font_color", ink())
+  muteb.add_theme_font_size_override("font_size", 11)
+  muteb.custom_minimum_size = Vector2(34, 26)
+  muteb.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+  muteb.position = Vector2(-56, 12)
+  muteb.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+  muteb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+  layer.add_child(muteb)
+  ui.muteb = muteb
   # toast
   var toastc = PanelContainer.new()
   toastc.add_theme_stylebox_override("panel", chip_style())
@@ -1105,6 +1122,7 @@ func _ready():
     GUSTHOLD = "gusthold=1" in q
     SHAKEHOLD = "shakehold=1" in q
     BURSTHOLD = "bursthold=1" in q
+    CLICKLOG = "clicklog=1" in q
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -1180,6 +1198,9 @@ func _ready():
   ui.title.modulate.a = 0.0
   var etw = create_tween()
   etw.tween_property(ui.title, "modulate:a", 1.0, 0.9).set_delay(0.15)
+  if OS.has_feature("web") and str(JavaScriptBridge.eval("localStorage.getItem('ktl_mute')||''")) == "1":
+    apply_mute(true, true)
+    print("[KTL] mute restored off")
   print("[KTL] ready")
   if AUTO:
     await get_tree().create_timer(0.4).timeout
@@ -1197,6 +1218,21 @@ func layout_hud():
   ui.jumpb.size = Vector2(96, 96)
   cam.fov = 68 if vs.x / vs.y < 0.75 else (62 if vs.x / vs.y < 1.05 else 55)
 
+func toggle_mute():
+  muted = not muted
+  AudioServer.set_bus_mute(0, muted)
+  ui.muteb.modulate.a = 0.45 if muted else 1.0
+  toast("SOUND OFF" if muted else "SOUND ON")
+  print("[KTL] mute ", "off" if muted else "on")
+  if OS.has_feature("web"):
+    JavaScriptBridge.eval("localStorage.setItem('ktl_mute','" + ("1" if muted else "0") + "')")
+
+func apply_mute(m, quiet = false):
+  muted = m
+  AudioServer.set_bus_mute(0, muted)
+  if ui.has("muteb"): ui.muteb.modulate.a = 0.45 if muted else 1.0
+  if not quiet: print("[KTL] mute ", "off" if muted else "on")
+
 func toggle_pause():
   if ST.phase == "play":
     ST.phase = "pause"
@@ -1205,21 +1241,29 @@ func toggle_pause():
     ST.phase = "play"
     ui.paused.visible = false
 
+func mute_chip_hit(pos):
+  var vs4 = get_viewport().get_visible_rect().size
+  return abs(pos.x - (vs4.x - 52.0)) < 15.0 and abs(pos.y - 25.0) < 15.0
+
 func pause_chip_hit(pos):
   var vs3 = get_viewport().get_visible_rect().size
   return (pos - Vector2(vs3.x - 31.0, 25.0)).length() < 30.0
 
 func _input(ev):
+  if CLICKLOG and ev is InputEventMouseButton and ev.pressed: print("[KTL] click ", ev.position)
   if ev is InputEventKey:
     keys[ev.physical_keycode] = ev.pressed
     if ev.pressed and ev.physical_keycode == KEY_SPACE: press_jump()
     if ev.pressed and ev.physical_keycode == KEY_ESCAPE: toggle_pause()
-  if ev is InputEventMouseButton and ev.pressed and pause_chip_hit(ev.position):
-    toggle_pause()
+  if ev is InputEventMouseButton and ev.pressed:
+    if mute_chip_hit(ev.position): toggle_mute()
+    elif pause_chip_hit(ev.position): toggle_pause()
   if ev is InputEventScreenTouch:
     if ev.pressed:
       var vs = get_viewport().get_visible_rect().size
-      if pause_chip_hit(ev.position):
+      if mute_chip_hit(ev.position):
+        toggle_mute()
+      elif pause_chip_hit(ev.position):
         toggle_pause()
       elif ev.position.x < vs.x * 0.45 and stick_id == -1:
         stick_id = ev.index

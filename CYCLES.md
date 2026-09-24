@@ -305,3 +305,17 @@ eyeballed frame showed toast + pip but no readable burst. Reworked the hold to p
 mid-flight; second frame shows a clear scattered arc of amber sparkles by the window.
 Verified: burst1.png eyeballed (burst arc + toast + lit pip on the exported build); verify3
 WON ok (spawns and frees bursts across all 5 pickups without errors). pck 81,728 bytes.
+
+## Cycle 27 - 2026-09-24 ~06:53 IST - PASS
+Built: mute chip - a small "S" chip beside the pause chip, toggles the master bus with a
+"SOUND OFF/ON" toast, dims while muted, and persists via localStorage ktl_mute (restored on
+load). Routed through the _input hit-test path (like the pause chip) since an overlay
+swallows GUI button clicks.
+Caught: three click attempts produced zero mute traces before any game logic was suspect -
+the clicklog debug param revealed the browser viewport maps 1:1.5 onto the game viewport
+(640x420 -> 960x630), so every chip coordinate I aimed was off. Fixed the test coords, not
+the game. Also made the mute Button visual-only (IGNORE filter) after the Button signal
+proved unreachable - same pattern the pause chip already lived with.
+Verified: traces "mute off / mute on / mute off" then on reload "mute restored off";
+mute-off.png shows the SOUND OFF toast + dimmed chip mid-climb; mute-title.png shows the
+chip restored dim on the title card. verify3 WON ok on the final build. pck 82,800 bytes.

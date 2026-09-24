@@ -1013,3 +1013,25 @@ correct) and in-game at begin for storm=3 and storm=5. Frames eyeballed at
 480x800: the L1/L3/L5 title strip, the storm-III violet stairwell, the
 storm-V ember stairwell with the correct oil=64 budget on the HUD.
 Grade: PASS (title mid-level subtlety noted honestly above).
+
+## Cycle 70 - the storm breathes through the windows (proximity audio)
+The wind, rain and surf beds were global: the storm sounded identical pressed
+against an open window as sealed in the stair core. Windows are openings to
+the weather; passing one should breathe.
+Built: window positions banked at build (the four stair windows, th and y).
+Each play frame, rain and surf bed volumes swell above their storm-level base
+by keeper proximity to the nearest window (arc distance x R_SHELL plus
+vertical gap, 5-unit range, squared easing, +4 dB cap on rain, +2.8 on surf).
+Base volumes are stored in apply_storm_audio and restored on the title so the
+swell never leaks out of a run. Throttled trace on each 0.5 dB change.
+Failed then fixed: no failures. Grading note: the measured peak in the auto
+run is +1.7 dB (the keeper passes below the window center), quieter than the
++4 cap by design's easing - a polite breath, kept as-is per the sound bar
+rather than chasing decibels blind.
+Verified (final build, pck 108,176): verify3 WON ok. Split-pack boot with the
+pck hidden. 14 swell traces firing at exactly the four window thetas
+(1.3-2.2, 5.8-6.8, 10.6-11.5, 14.7-15.0), max +1.7 dB, bounded under the cap;
+on return to title the audio trace shows base volumes (rainv=-12, surfv=-19
+at level III) - the restore works. Audio is trace-verified; no frame can show
+it (a gallery-window pass frame was captured for context).
+Grade: PASS.

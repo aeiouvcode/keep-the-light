@@ -475,6 +475,38 @@ func build_tower(root):
     rainq.position.z = 0.10
     g.add_child(rainq)
     tower.win_rain.append(rainm)
+    # the world outside is alive: village hearth-lights twinkle low, and out on
+    # the water a distant ship light answers the foghorn with a slow blink
+    if not tower.has("win_lights"): tower.win_lights = []
+    var vl = [[-0.42 * wf, -0.9, Color(1.0, 0.72, 0.42), 0], [0.31 * wf, -1.05, Color(1.0, 0.78, 0.5), 1]]
+    for v in vl:
+      var vq = MeshInstance3D.new()
+      var vpm = PlaneMesh.new(); vpm.size = Vector2(0.30, 0.30)
+      vq.mesh = vpm
+      var vmt = StandardMaterial3D.new()
+      vmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+      vmt.albedo_texture = tower.glow_tex
+      vmt.albedo_color = Color(v[2].r, v[2].g, v[2].b, 0.75)
+      vmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+      vmt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+      vq.material_override = vmt
+      vq.position = Vector3(v[0], v[1], 0.12)
+      g.add_child(vq)
+      tower.win_lights.append({m=vmt, ph=v[0] * 7.7, kind="village"})
+    if wf > 1.0:
+      var sq = MeshInstance3D.new()
+      var spm2 = PlaneMesh.new(); spm2.size = Vector2(0.34, 0.34)
+      sq.mesh = spm2
+      var smt = StandardMaterial3D.new()
+      smt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+      smt.albedo_texture = tower.glow_tex
+      smt.albedo_color = Color(0.85, 0.92, 1.0, 0.6)
+      smt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+      smt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+      sq.material_override = smt
+      sq.position = Vector3(0.55, -0.62, 0.12)
+      g.add_child(sq)
+      tower.win_lights.append({m=smt, ph=0.0, kind="ship"})
     if wf > 1.0:
       var spill = MeshInstance3D.new()
       var spm = PlaneMesh.new(); spm.size = Vector2(3.6, 4.4)
@@ -1807,6 +1839,13 @@ func _process(dt):
       var prox = clamp(1.0 - Vector2(dth2, dy2).length() / 2.4, 0.0, 1.0)
       sc.glow.modulate.a = 0.06 + 0.72 * prox * (0.85 + 0.15 * sin(t_now * 11.0))
       sc.glow.scale = Vector3(0.8, 0.8, 1) * (1.0 + 0.6 * prox)
+    if tower.has("win_lights"):
+      for wl in tower.win_lights:
+        if wl.kind == "village":
+          wl.m.albedo_color.a = 0.45 + 0.40 * (0.5 + 0.5 * sin(t_now * 1.7 + wl.ph))
+        else:
+          var bl = 0.5 + 0.5 * sin(t_now * 0.9)
+          wl.m.albedo_color.a = 0.10 + 0.80 * smoothstep(0.45, 0.9, bl)
     if tower.has("spill_mat"):
       tower.spill_mat.albedo_color.a = 0.4 * (0.85 + 0.15 * sin(t_now * 0.23))
       tower.beam_mat.albedo_color.a = 0.35 * (0.75 + 0.25 * sin(t_now * 0.23 + 1.2))

@@ -445,3 +445,17 @@ halo, far beyond its idle shimmer; flare-far.png (th~5.5) keeps the shard around
 curve (also catches the cycle-36 moonbeam wash top-right). Honest caveat: the A/B is
 near-frame vs idle frames from earlier cycles, not the same shard in one still.
 verify3 WON ok on the final build. pck 87,216 bytes.
+
+## Cycle 38 - 2026-09-24 ~12:26 IST - PASS
+Built: the world outside is alive - two warm village hearth-lights twinkle low in
+every window (alpha 0.45-0.85, per-light phase), and on the gallery vista a distant
+ship light answers the foghorn with a slow blink (smoothstep pulse, white-blue).
+Additive glow dots on the sky plane. Ambient storytelling only; no mechanic change.
+Caught: three zombie chrome stacks from tool-timeout kills pushed the box to load 9.7
+and stalled verify3 past 119s - killed them, verify3 back to ~50s. First dot pass
+(0.16 size, alpha <=0.58) did not read in a still - iterated to 0.30/0.34 size and
+higher alpha.
+Verified: winlights2.png eyeballed - a warm hearth dot glows in the window left of the
+keeper against the moonbeam wash. Honest caveat: the vista window sits oblique to the
+camera so the still shows one dot clearly; twinkle and ship-blink are motion features.
+verify3 WON ok on the final build. pck 88,224 bytes.

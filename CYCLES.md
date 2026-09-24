@@ -519,3 +519,15 @@ trace window in a single fast=1 frame), shard flares and all 3 "drop +8 oil" pic
 intact, won=true. verify3 WON ok on the final build. dropflare-1/2.png eyeballed -
 both land at the collection toast; the swell is a motion read, same honest caveat as
 the sconce and run-off stills. pck 90,560 bytes.
+
+## Cycle 43 - 2026-09-24 ~16:30 IST - PASS
+Built: the tower answers. During the exterior ending, five warm windows kindle up the
+tower shell bottom-to-top (Sprite3D core+halo pairs on the camera-facing arc, kindle at
+endT 1.2 + 0.7/window, 0.5s fade-in, gentle flicker after). The climb you just made
+lights up behind you - the win reads on the tower itself, not only on the card.
+Per-window edge trace "tower answers win=N endT=". Reset on begin() for replays.
+Verified: REAL traces on the exported build - win=1..5 firing in order at endT
+1.7/2.5/3.2/3.8/4.6 (fast=1), then ignite/ending/won intact. verify3 WON ok on the
+final build. towerans-mid.png eyeballed: three lit windows read clearly down the
+silhouette with the beams sweeping; towerans-won.png: the lit windows hold behind the
+THE LIGHT HOLDS card. pck 91,616 bytes.

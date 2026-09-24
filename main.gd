@@ -1021,7 +1021,7 @@ func build_hud():
   layer.add_child(ui.paused)
 
 # ---------- exterior ending ----------
-var EXT = {}
+var EXT = {win_glows=[]}
 func build_exterior():
   var g = Node3D.new()
   g.visible = false
@@ -1108,6 +1108,21 @@ func build_exterior():
   var lp = OmniLight3D.new(); lp.light_color = Color(1.0,0.75,0.42); lp.light_energy = 6.0
   lp.omni_range = 220; lp.omni_attenuation = 0.7; lp.position.y = 27.6
   tw.add_child(lp)
+  # the tower answers: warm windows kindle up the shell once the light is relit
+  var wspec = [[3.2, -0.50], [7.6, -0.06], [12.0, -0.42], [16.4, -0.14], [20.8, -0.36]]
+  for ws in wspec:
+    var wy = ws[0]; var wa = ws[1]
+    var wr = (3.0 - (3.0 - 2.2) * wy / 26.0) + 0.12
+    var wpos = Vector3(wr * sin(wa), wy, wr * cos(wa))
+    var wcore = Sprite3D.new(); wcore.texture = tower.glow_tex
+    wcore.modulate = Color(1.0, 0.72, 0.35, 0.0); wcore.scale = Vector3(0.55, 0.75, 1)
+    wcore.position = wpos
+    tw.add_child(wcore)
+    var whalo = Sprite3D.new(); whalo.texture = tower.glow_tex
+    whalo.modulate = Color(1.0, 0.72, 0.35, 0.0); whalo.scale = Vector3(2.0, 2.0, 1)
+    whalo.position = wpos
+    tw.add_child(whalo)
+    EXT.win_glows.append({core=wcore, halo=whalo, traced=false})
   var beams = Node3D.new(); beams.position.y = 27.6; tw.add_child(beams)
   var ebm = StandardMaterial3D.new()
   ebm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1474,6 +1489,8 @@ func reset_run():
   ui.dim.color.a = 0.0
   ui.title.visible = false; ui.end.visible = false; ui.fail.visible = false
   EXT.root.visible = false
+  for wg in EXT.win_glows:
+    wg.core.modulate.a = 0.0; wg.halo.modulate.a = 0.0; wg.traced = false
   tower_root.visible = true
   lantern.visible = true
   wenv.environment = env_tower
@@ -2054,6 +2071,17 @@ func _process(dt):
     EXT.ship.position.z += dt * EXT.ship_turn * 3.2
     EXT.ship.position.y = sin(t_now * 1.1) * 0.25
     EXT.ship.rotation.z = sin(t_now * 0.9) * 0.04
+    # the tower answers: windows kindle bottom-to-top once the beam is turning
+    for wi in EXT.win_glows.size():
+      var wg = EXT.win_glows[wi]
+      var ka = clamp((ST.endT - (1.2 + wi * 0.7)) / 0.5, 0.0, 1.0)
+      if ka > 0.0:
+        var kfl = 0.88 + 0.12 * sin(t_now * 5.0 + wi * 2.1)
+        wg.core.modulate.a = 0.95 * ka * kfl
+        wg.halo.modulate.a = 0.38 * ka * kfl
+      if ka >= 1.0 and not wg.traced:
+        wg.traced = true
+        print("[KTL] tower answers win=", wi + 1, " endT=", snapped(ST.endT, 0.1))
     cam.position = Vector3(sin(t_now * 0.05) * 3.0, 4.2 + sin(t_now * 0.1) * 0.5, 28)
     cam.look_at(Vector3(8, 12, -50), Vector3.UP)
     if ST.phase == "ending" and ST.endT > 6.5:

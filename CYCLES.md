@@ -498,3 +498,24 @@ Verified: drips3.png eyeballed vs drips2.png (same angle, pre-proximity) - a wet
 band reads below the sill in the lantern's reach. Honest caveat: subtle in a still,
 reads in motion with the scroll; two capture runs were lost to a zombie-chrome CPU
 stall (killed, re-ran clean). verify3 WON ok on the final build. pck 90,256 bytes.
+
+## Cycle 42 - 2026-09-24 ~16:05 IST - PASS (weak)
+Built: oil drops answer the lantern like the shards do - each uncollected drop swells
+(glow alpha x1.9, halo scale x1.6 at zero distance, 3.0-unit falloff) as the keeper's
+light nears. Consistency pass with the cycle-37 shard flare. Edge-triggered
+"drop flare" trace at prox>0.45, re-arms below 0.2.
+Caught: THIRD workspace wipe of the day (~15:45 IST) - full toolchain rebuild (clone,
+Godot 4.3 binary, 1GB templates, puppeteer, verify3 rewrite). Recovery exposed a real
+hazard: the first post-wipe project copy held a STALE 63KB main.gd (pre-cycle-32),
+exported a 75KB pck, and PASSED verify3 - ten cycles of work silently missing. Caught
+by pck size mismatch vs live (75,296 vs 90,256); re-copied with md5 checks and the
+rebuild was byte-identical to live (90,256) before any patching. The pre-wipe cycle-42
+attempt (trace threshold prox>0.5) never fired; with the wipe that failure is
+unattributable, so the patch was redone from repo HEAD with threshold 0.45 (1.65-unit
+trip, outside the 1.10-unit pickup radius).
+Verified: REAL traces on the exported build - "drop flare prox=0.5 th=3.9" and
+"drop flare prox=0.52 th=12" (2 of 3 drops flared; the third can jump the 0.55-unit
+trace window in a single fast=1 frame), shard flares and all 3 "drop +8 oil" pickups
+intact, won=true. verify3 WON ok on the final build. dropflare-1/2.png eyeballed -
+both land at the collection toast; the swell is a motion read, same honest caveat as
+the sconce and run-off stills. pck 90,560 bytes.

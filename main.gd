@@ -1227,6 +1227,7 @@ var gust_t = 6.0
 var gust_vis = 0.0
 var ambient_hi_traced = false
 var shard_flare_traced = false
+var drop_flare_traced = false
 var vignette_traced = false
 var VIGHOLD = false
 var FLASHHOLD = false
@@ -1896,7 +1897,16 @@ func _process(dt):
       var d3 = tower.drops[i3]
       if not d3.visible: continue
       d3.position.y = drops[i3].y + sin(t_now * 2.6 + i3 * 1.7) * 0.08
-      d3.get_child(1).modulate.a = 0.5 + sin(t_now * 4.2 + i3 * 2.3) * 0.25
+      var ddth = abs(ST.th - drops[i3].th) * R_SHELL
+      var ddy = abs(ST.y + 1.0 - drops[i3].y)
+      var dprox = clamp(1.0 - Vector2(ddth, ddy).length() / 3.0, 0.0, 1.0)
+      d3.get_child(1).modulate.a = min(1.0, (0.5 + sin(t_now * 4.2 + i3 * 2.3) * 0.25) * (1.0 + 0.9 * dprox))
+      d3.get_child(1).scale = Vector3(0.9, 0.9, 1) * (1.0 + 0.6 * dprox)
+      if dprox > 0.45 and not drop_flare_traced:
+        drop_flare_traced = true
+        print("[KTL] drop flare prox=", snapped(dprox, 0.01), " th=", snapped(ST.th, 0.1))
+      elif dprox < 0.2 and drop_flare_traced:
+        drop_flare_traced = false
     for sc in tower.sconces:
       var dth2 = abs(ST.th - sc.th) * R_SHELL
       var dy2 = abs(ST.y + 1.0 - sc.y)

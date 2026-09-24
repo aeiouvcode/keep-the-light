@@ -933,3 +933,28 @@ storm III): "title held pips=1", "title remembers storm=III held=1", frame shows
 one amber diamond under "STORM III - BEST 3:20 - 1 HELD". Frames eyeballed at
 480x800.
 Grade: PASS.
+
+## Cycle 67 - the calm sea reward (rain gentles, a lit ship drifts by)
+The capstone gave keeping the light a tally; this gives the tally a weather.
+When the keeper has banked storms and the sea sits at level I, the title night
+itself thanks them: the rain gentles and a distant ship crosses the horizon.
+Built: calm-sea state on the title (storms_held > 0 and storm level I). Rain
+intensity drops to 0.8x via the existing rainx multiplier. The pre-existing
+exterior ship (built for the ending) becomes visible and drifts left-to-right
+across the horizon band left of the card at z=-340, bobbing gently, its window
+glow scaled 2.2x and a new mast-top navigation light added (same warm glow
+texture). reset_run restores the ship's ending-choreography anchor, rotation,
+and both glow scales. Debug: shipz=N overrides the distance.
+Failed then fixed: first drift placement (z=-85/-95, x -55/-40) put the ship
+off-frame - the unproject trace sat at (-21.8, 960.1). A z sweep (220/280/340)
+mapped the horizon band, then a duplicate-ship bug surfaced: my drift block
+collided with the pre-existing EXT.ship (var shadowing caught pre-write by
+grep). Removed the duplicate; the drift reuses the original ship. Glow scale
+1.5x at z=-340 was invisible in stills; 2.2x window + 1.6x mast light reads.
+Verified (final build, pck 105,792): verify3 WON ok. Split-pack boot with the
+pck hidden. Calm pass (held=2): "calm sea held=2", "title storm lvl=1
+rainx=0.8", ship screen trace drifting (143,927) -> (193,934) backing-store px
+over 30s. Control pass (keys cleared): no calm trace, rainx=1, ship hidden.
+Frames eyeballed at 480x800: full title plus a 4x crop of the horizon strip -
+the warm lit dot and faint hull smudge sit exactly on the horizon line.
+Grade: PASS.

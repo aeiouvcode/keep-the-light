@@ -1928,6 +1928,13 @@ func _process(dt):
           ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
           sfx("chime" + str(ST.panes), -6.0)
           buzz(15)
+          # the earned pip answers the chime - the HUD takes the pickup
+          var ptw = create_tween()
+          ptw.tween_property(ui.pips[i], "modulate:a", 0.25, 0.22)
+          ptw.tween_property(ui.pips[i], "modulate:a", 1.0, 0.22)
+          ptw.tween_property(ui.pips[i], "modulate:a", 0.25, 0.22)
+          ptw.tween_property(ui.pips[i], "modulate:a", 1.0, 0.25)
+          print("[KTL] pip pulse i=", i)
           var bs = []
           for bi in 7:
             var sp = Sprite3D.new()

@@ -856,3 +856,31 @@ Harness note: first harness run had two string bugs of its own (matched 'lvl= 4'
 with a space; toast screenshot raced browser close) - game code was right, the
 harness was wrong; re-ran corrected.
 Grade: PASS.
+
+## Cycle 64 - the storm has a voice (audio character per level)
+Critique: the escalation ladder (c62) and the visual telegraph (c63) tell the
+returning player the sea is higher - but the game's richest channel, its
+synthesized soundscape, still sounds identical at storm I and storm V. The storm
+should SOUND heavier before the first step.
+Built: apply_storm_audio() shapes the three ambient loops by the awaiting/active
+level: wind pitch 1.0 -> 0.90 (1.0 - 0.025*(L-1), a deeper bed - softer highs, on
+the sound bar), wind volume -17 -> -15.4 dB, rain -13 -> -11 dB, surf -20 -> -18
+dB. Gust one-shots deepen 3%/level on top of the c62 storm_h volume scaling.
+Applied at begin (reset_run) and re-checked on the title every 0.5s (throttled
+localStorage read) so a streak change is heard the moment the title shows it.
+No new samples synthesized - pitch/volume shaping of the existing kit only.
+Failed then fixed: the title re-arm replaced c63's one-shot title_lvl block with a
+change-detect (title_lvl != storm_level_get()); first harness expected the rise
+trace after a win WITHOUT clicking through - but KEEP IT AGAIN goes straight to
+_on_begin, there is no title return post-win. Second harness clicked too early
+(card still tweening in); with a 2.5s settle the click lands and the rise
+verifies. Game code was right twice; the harness was wrong twice. Logged, not
+hidden.
+Verified (final build, pck 103,440): verify3 WON ok. Split-pack boot with the pck
+hidden. Traces: storm=1 "storm audio lvl=1 windp=1 rainv=-13 surfv=-20"; storm=4
+"lvl=4 windp=0.925 rainv=-11.5 surfv=-18.5"; seeded-2 begin "lvl=2 windp=0.975";
+win at 2 then KEEP IT AGAIN -> "storm audio lvl=3 windp=0.95 rainv=-12 surfv=-19"
++ "storm level L=3 oil=72 gustx=0.8" + "storm toast lvl=3". Audio is
+trace-verified; there is no still-frame delta (honest note). Win card frame from
+this build shows STORM III AWAITS.
+Grade: PASS.

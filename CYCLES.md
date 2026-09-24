@@ -722,3 +722,30 @@ shot:false) - pulse is 0.35s and trace-verified instead.
 pck 97,808 bytes (deterministic after build/* exclude).
 Committed locally only (pck push blocked: upload-widget storage request fails
 for this session; text files pushed via web editor to e101b1a).
+
+## Cycle 58 - 2026-09-24 ~23:10 IST - PASS
+Built: the balcony arch (backlog #1, reworked). The tower now opens to the
+storm at the second landing (th=7.6, y=7.6 flat): a tall full-height arch
+framing the moonlit sea (tex_vista reused portrait), a rain sheet scrolling
+in the opening (joined to win_rain so it gusts with the rest), a Juliet rail
+across the lower half, and a cool moon-spill pool on the landing boards. The
+camera's gallery ease-wide now also covers the balcony landing
+(zw = max(gallery, balcony bump)), so the arch is handed to the player, not
+just passed at the frame edge.
+Process note (honest): first build was floor-height and keeper-width - four
+captures (hold pin, peek both ways, forced-camera diagnostic) showed the
+keeper eclipsing it / sitting past the frame edge; a forced-camera capture
+proved the geometry WAS built and placed correctly (trace "balcony built at
+(1.75,7.62,6.75)"), so the fix was compositional: arch raised to 4.2m with
+the vista centered +2.3 above the landing, clearing the keeper's head. New
+debug param balconyhold=1 pins the keeper at the landing for captures (same
+pattern as gusthold/landhold).
+Verified: REAL trace on the final exported build - "[KTL] balcony th=7.56"
+fired crossing the landing; balcony-a/b climb-past frames (phone-portrait
+480x800) show the arch's moonlit mass (max-brightness @ cluster) center-frame
+above the keeper on approach, spill bright on the landing. verify3 WON ok on
+the final build (fresh run, 23:11). Audio: none added (foghorn/ship already
+live there).
+pck 99,952 bytes.
+Committed locally; text files pushed via web editor, pck held for the
+Cloudflare pair-deploy.

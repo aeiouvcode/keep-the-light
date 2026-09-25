@@ -338,6 +338,22 @@ func tex_skywin():
   img.fill_rect(Rect2i(84, 88, 18, 18), Color(0.9, 0.94, 0.97, 0.9))
   img.fill_rect(Rect2i(78, int(256*0.72), 28, 70), Color(0.59, 0.75, 0.86, 0.16))
   return ImageTexture.create_from_image(img)
+
+func tex_lampsky():
+  # the night waiting outside the lamp-room glass: storm sky, stars, slant rain
+  var img = Image.create(256, 128, false, Image.FORMAT_RGBA8)
+  for y in 128:
+    var t = y / 127.0
+    var c = Color(0.024, 0.043, 0.082)
+    if t > 0.62: c = Color(0.024, 0.043, 0.082).lerp(Color(0.105, 0.155, 0.225), (t - 0.62) / 0.38)
+    img.fill_rect(Rect2i(0, y, 256, 1), c)
+  for i in 70:
+    img.set_pixel(randi_range(0, 255), randi_range(0, 74), Color(1, 1, 1, randf_range(0.3, 0.7)))
+  for i in 26:
+    var rx = randi_range(0, 255); var ry = randi_range(10, 108)
+    for k in 5:
+      img.set_pixel(clampi(rx + k / 3, 0, 255), clampi(ry + k, 0, 127), Color(0.7, 0.8, 0.9, 0.10))
+  return ImageTexture.create_from_image(img)
 func tex_vista():
   # the second-landing gallery window: big moon, moonlit sea, stars.
   # composed for the mid band - the follow camera mostly shows the texture's middle.
@@ -820,6 +836,31 @@ func build_lamp_room(root):
     bg.add_child(cone)
   tower.beam_group = bg
   tower.beam_mat = bm
+  # the storm waits outside the glass: a night-sky band above the lamp-room floor,
+  # tinted by the same storm identity as every other sky in the tower
+  var lskym = StandardMaterial3D.new()
+  lskym.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  lskym.albedo_texture = tex_lampsky()
+  lskym.uv1_scale = Vector3(6, 1, 1)
+  var lsky = MeshInstance3D.new()
+  var lsm = CylinderMesh.new(); lsm.top_radius = 6.94; lsm.bottom_radius = 6.94; lsm.height = 6.0; lsm.radial_segments = 40; lsm.flip_faces = true
+  lsky.mesh = lsm; lsky.material_override = lskym; lsky.position.y = 3.0
+  lr.add_child(lsky)
+  if not tower.has("sky_mats"): tower.sky_mats = []
+  tower.sky_mats.append(lskym)
+  # and the rain reaches the lamp glass itself
+  var lstreakm = StandardMaterial3D.new()
+  lstreakm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+  lstreakm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+  lstreakm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+  lstreakm.cull_mode = BaseMaterial3D.CULL_DISABLED
+  lstreakm.albedo_color = Color(1, 1, 1, 0.10)
+  lstreakm.albedo_texture = tex_rain_streaks()
+  lstreakm.uv1_scale = Vector3(12, 1, 1)
+  var lstreak = MeshInstance3D.new()
+  var lstm = CylinderMesh.new(); lstm.top_radius = 5.34; lstm.bottom_radius = 5.34; lstm.height = 2.2; lstm.radial_segments = 24
+  lstreak.mesh = lstm; lstreak.material_override = lstreakm; lstreak.position.y = 1.6
+  lr.add_child(lstreak)
 
 func build_shards(root):
   tower.shards = []

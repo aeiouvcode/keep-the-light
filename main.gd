@@ -698,6 +698,10 @@ func build_tower(root):
   var bqm = StandardMaterial3D.new()
   bqm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   bqm.albedo_texture = vista
+  # the reveal must READ from the stair: the vista lifts toward its own light
+  bqm.emission_enabled = true
+  bqm.emission_texture = vista
+  bqm.emission_energy_multiplier = 0.55
   bq.material_override = bqm
   bq.position = Vector3(0, 2.3, 0.08)
   bd.add_child(bq)
@@ -724,7 +728,7 @@ func build_tower(root):
   var bsm = StandardMaterial3D.new()
   bsm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   bsm.albedo_texture = tower.glow_tex
-  bsm.albedo_color = Color(0.62, 0.74, 0.88, 0.3)
+  bsm.albedo_color = Color(0.62, 0.74, 0.88, 0.42)
   bsm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
   bsm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
   bs.material_override = bsm

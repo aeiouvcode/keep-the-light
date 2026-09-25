@@ -2104,6 +2104,10 @@ func _process(dt):
       var dy = abs((ST.y + 1.2) - wp[1])
       var dd = sqrt(dth * dth + dy * dy)
       swell = max(swell, clampf(1.0 - dd / 5.0, 0.0, 1.0))
+    # the balcony door opens to the storm too - rain and surf swell as you pass it
+    var bdth = abs(ST.th - 7.6) * R_SHELL
+    var bdd = sqrt(bdth * bdth + pow((ST.y + 1.2) - 9.1, 2.0))
+    swell = max(swell, clampf(1.0 - bdd / 5.0, 0.0, 1.0))
     swell = swell * swell * 4.0
     if players.get("rain"): players["rain"].volume_db = base_rainv + swell
     if players.get("surf"): players["surf"].volume_db = base_surfv + swell * 0.7

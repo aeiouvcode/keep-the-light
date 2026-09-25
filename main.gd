@@ -1712,6 +1712,8 @@ func reset_run():
   apply_storm_audio()
   EXT.ship.position = Vector3(-58, 0, -105)
   EXT.ship.rotation = Vector3.ZERO
+  EXT.ship_turn = 0.0; EXT.belled = false
+  ship_traced = false
   EXT.ship_win.scale = Vector3(0.9, 0.9, 1)
   EXT.ship_nav.scale = Vector3(0.7, 0.7, 1)
   apply_storm_identity(storm_level)
@@ -2496,6 +2498,23 @@ func _process(dt):
         if phase2T > 2.6:
           ST.phase = "ending"
           ST.endT = 0.0
+          # bring the ship's home-crossing into the ending frame: she enters from the
+          # left edge and sails the visible water, so the beam finding her (and the
+          # bell, and her turn for home) plays where the keeper can see it
+          EXT.ship.position = Vector3(-4, 0.1, -80)
+          EXT.ship.rotation = Vector3.ZERO
+          EXT.ship_win.scale = Vector3(1.7, 1.7, 1)
+          EXT.ship_nav.scale = Vector3(1.3, 1.3, 1)
+          # her lights answer on the water: one soft reflection glow so the
+          # crossing reads on a phone screen, low and warm like the keeper's lamp
+          if not EXT.ship.has_node("homeglow"):
+            var hg = Sprite3D.new()
+            hg.name = "homeglow"
+            hg.texture = tower.glow_tex
+            hg.modulate = Color(1.0, 0.76, 0.46, 0.15)
+            hg.scale = Vector3(2.6, 0.9, 1)
+            hg.position = Vector3(0, -0.5, 0)
+            EXT.ship.add_child(hg)
           tower_root.visible = false
           lantern.visible = false
           EXT.root.visible = true
@@ -2558,6 +2577,7 @@ func _process(dt):
       if not EXT.belled:
         EXT.belled = true
         sfx("bell", -10.0)
+        print("[KTL] bell for the ship at screen ", cam.unproject_position(EXT.ship.position), " endT=", snapped(ST.endT, 0.1))
     if EXT.ship_turn > 0:
       EXT.ship_turn = min(EXT.ship_turn + dt * 0.4, 1.6)
       EXT.ship.rotation.y = lerp(EXT.ship.rotation.y, -0.9, dt * 0.8)
@@ -2565,6 +2585,9 @@ func _process(dt):
     EXT.ship.position.z += dt * EXT.ship_turn * 3.2
     EXT.ship.position.y = sin(t_now * 1.1) * 0.25
     EXT.ship.rotation.z = sin(t_now * 0.9) * 0.04
+    if ST.phase == "ending" and not ship_traced and ST.endT > 4.0:
+      ship_traced = true
+      print("[KTL] ending ship at screen ", cam.unproject_position(EXT.ship.position), " endT=", snapped(ST.endT, 0.1))
     # the tower answers: windows kindle bottom-to-top once the beam is turning
     for wi in EXT.win_glows.size():
       var wg = EXT.win_glows[wi]

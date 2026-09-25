@@ -78,7 +78,7 @@ var drops = []
 func pane_pos_list():
   # per-run jitter: every climb lays the panes a little differently (guard: never in a stair gap)
   var out = []
-  for th in [1.7, 7.6, 9.5, 15.6, 18.3]:
+  for th in [1.7, 7.6, 9.5, 16.3, 18.3]:
     var th2 = th + (randf_range(-0.45, 0.45) if th < 18.0 else randf_range(-0.25, 0.25))
     var guard = 0
     while floor_at(th2, 99.0) < 0.5 and guard < 20:
@@ -396,6 +396,13 @@ func tex_vista():
     var rx = int(mx + randf_range(-spread, spread))
     var rw = randi_range(2, 9)
     img.fill_rect(Rect2i(clamp(rx, 0, 248), ry, rw, 1), Color(0.66, 0.79, 0.92, randf_range(0.2, 0.55)))
+  # the distant ship: a small warm light low on the sea with a faint reflection -
+  # the foghorn you hear out there has a source when you look
+  var shx = 66; var shy = 176
+  img.fill_rect(Rect2i(shx, shy, 3, 2), Color(1.0, 0.74, 0.45, 0.9))
+  img.fill_rect(Rect2i(shx + 1, shy - 1, 1, 1), Color(1.0, 0.8, 0.55, 0.7))
+  for i in 4:
+    img.fill_rect(Rect2i(shx + (i % 2), shy + 3 + i * 2, 1, 1), Color(0.9, 0.64, 0.4, 0.28 - i * 0.05))
   return ImageTexture.create_from_image(img)
 
 func tex_rain_streaks():
@@ -1501,6 +1508,8 @@ var jumpBuf = 0.0
 var stick_id = -1
 var stick_x = 0.0
 var stick_origin = Vector2.ZERO
+var peek_id = -1
+var mouse_lb = false
 var is_touch = false
 var toast_t = 0.0
 var thunder_t = 7.0
@@ -1721,6 +1730,8 @@ func _input(ev):
     keys[ev.physical_keycode] = ev.pressed
     if ev.pressed and ev.physical_keycode == KEY_SPACE: press_jump()
     if ev.pressed and ev.physical_keycode == KEY_ESCAPE: toggle_pause()
+  if ev is InputEventMouseButton and ev.button_index == MOUSE_BUTTON_LEFT:
+    mouse_lb = ev.pressed  # web MouseMotion carries button_mask 0, so track the button ourselves
   if ev is InputEventMouseButton and ev.pressed:
     # mobile browsers also fire a compatibility mouse click for every tap, and
     # the event order varies - so chip taps dedupe both directions: one tap is
@@ -1736,18 +1747,25 @@ func _input(ev):
         toggle_mute()
       elif chip_ok and pause_chip_hit(ev.position):
         toggle_pause()
-      elif ev.position.x < vs.x * 0.45 and stick_id == -1:
+      elif ev.position.x < vs.x * 0.45:
+        # the newest left-half touch always takes the stick - a stale or
+        # unnoticed resting touch (palm, second finger) must not lock climbing
         stick_id = ev.index
         stick_origin = ev.position
+        stick_x = 0.0
         is_touch = true
         layout_hud()
-      elif (ev.position - ui.jumpb.position - Vector2(48,48)).length() < 70:
-        press_jump()
+      else:
+        peek_id = ev.index
+        if (ev.position - ui.jumpb.position - Vector2(48,48)).length() < 70:
+          press_jump()
     else:
       if ev.index == stick_id:
         stick_id = -1
         stick_x = 0.0
-  if ev is InputEventMouseMotion and (ev.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0 and ST.phase == "play":
+      if ev.index == peek_id:
+        peek_id = -1
+  if ev is InputEventMouseMotion and mouse_lb and not is_touch and ST.phase == "play":
     peek = clamp(peek + ev.relative.x * 0.004, -1.1, 1.1)
     if abs(peek) > 0.5 and not peek_traced:
       peek_traced = true
@@ -1755,7 +1773,7 @@ func _input(ev):
   if ev is InputEventScreenDrag and ev.index == stick_id:
     stick_x = clamp((ev.position.x - stick_origin.x) / 55.0, -1.0, 1.0)
     ui.knob.position = ui.stick.position + Vector2(39, 39) + Vector2(stick_x * 32, 0)
-  elif ev is InputEventScreenDrag and ST.phase == "play":
+  elif ev is InputEventScreenDrag and ev.index == peek_id and ST.phase == "play":
     peek = clamp(peek + ev.relative.x * 0.005, -1.1, 1.1)
     if abs(peek) > 0.5 and not peek_traced:
       peek_traced = true
@@ -1800,6 +1818,7 @@ func reset_run():
   ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
   ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false; wind_marks.clear()
+  stick_id = -1; stick_x = 0.0; peek_id = -1  # no stale touch survives a restart
   for i in panes.size():
     panes[i].got = false
     panes[i].node.visible = true
@@ -1944,7 +1963,7 @@ func calm_flag_set(n):
 func win_run():
   ST.phase = "won"
   var prev = best_time()
-  var is_best = OS.has_feature("web") and (prev <= 0.0 or ST.elapsed < prev)
+  var is_best = OS.has_feature("web") and STORM_OVERRIDE == 0 and not FAST and (prev <= 0.0 or ST.elapsed < prev)
   if is_best:
     JavaScriptBridge.eval("localStorage.setItem('ktl_best','" + str(ST.elapsed) + "')")
     print("[KTL] new best ", fmt_time(ST.elapsed))

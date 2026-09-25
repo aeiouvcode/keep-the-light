@@ -1233,8 +1233,11 @@ func build_hud():
   ui.fail.visible = false
   layer.add_child(ui.fail)
   var b4 = mk_button("RESUME"); b4.pressed.connect(toggle_pause)
-  ui.paused = mk_card("PAUSED", "THE STORM WAITS",
-    "A/D, arrows or left stick - climb. SPACE or JUMP - jump. Drag - peek around the curve. Walk into a pane to take it. ESC - back to the stair.", b4)
+  var controls_txt = "A/D, arrows or left stick - climb. SPACE or JUMP - jump. Drag - peek around the curve. Walk into a pane to take it. ESC - back to the stair."
+  if is_touch:
+    controls_txt = "Drag the left half of the screen - climb. JUMP - jump. Drag the right half - peek around the curve. Walk into a pane to take it."
+  print("[KTL] controls card touch=", is_touch)
+  ui.paused = mk_card("PAUSED", "THE STORM WAITS", controls_txt, b4)
   ui.paused.visible = false
   layer.add_child(ui.paused)
 
@@ -1684,6 +1687,14 @@ func mute_chip_hit(pos):
   var vs4 = get_viewport().get_visible_rect().size
   return abs(pos.x - (vs4.x - 52.0)) < 15.0 and abs(pos.y - 25.0) < 15.0
 
+var last_chip_t = -10.0
+var last_chip_pos = Vector2(-99999, -99999)
+func chip_tap_guard(pos):
+  var t = Time.get_ticks_msec() / 1000.0
+  if t - last_chip_t < 0.6 and pos.distance_to(last_chip_pos) < 40.0: return false
+  last_chip_t = t; last_chip_pos = pos
+  return true
+
 func pause_chip_hit(pos):
   var vs3 = get_viewport().get_visible_rect().size
   return (pos - Vector2(vs3.x - 31.0, 25.0)).length() < 30.0
@@ -1695,14 +1706,19 @@ func _input(ev):
     if ev.pressed and ev.physical_keycode == KEY_SPACE: press_jump()
     if ev.pressed and ev.physical_keycode == KEY_ESCAPE: toggle_pause()
   if ev is InputEventMouseButton and ev.pressed:
-    if mute_chip_hit(ev.position): toggle_mute()
-    elif pause_chip_hit(ev.position): toggle_pause()
+    # mobile browsers also fire a compatibility mouse click for every tap, and
+    # the event order varies - so chip taps dedupe both directions: one tap is
+    # one toggle, whatever arrives second within the window is the same finger
+    if chip_tap_guard(ev.position):
+      if mute_chip_hit(ev.position): toggle_mute()
+      elif pause_chip_hit(ev.position): toggle_pause()
   if ev is InputEventScreenTouch:
     if ev.pressed:
       var vs = get_viewport().get_visible_rect().size
-      if mute_chip_hit(ev.position):
+      var chip_ok = chip_tap_guard(ev.position)
+      if chip_ok and mute_chip_hit(ev.position):
         toggle_mute()
-      elif pause_chip_hit(ev.position):
+      elif chip_ok and pause_chip_hit(ev.position):
         toggle_pause()
       elif ev.position.x < vs.x * 0.45 and stick_id == -1:
         stick_id = ev.index

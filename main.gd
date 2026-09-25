@@ -164,6 +164,14 @@ func build_audio():
     var env = exp(-t * 1.6)
     var r = (randf() * 2.0 - 1.0)
     return (r * 0.35 + lp * 1.4) * env * 0.45))
+  # the tower itself answers high storms: a low structural groan, pitch sagging
+  # under the wind's push, kept dark and quiet under the low-pass feedback
+  SND.groan = make_wav(synth(1.7, func(t, i, n, lp):
+    var u = t / 1.7
+    var f = 86.0 - 22.0 * u + 6.0 * sin(t * 9.0)
+    var creak = sin(TAU2 * f * t) * 0.5 + sin(TAU2 * f * 2.7 * t) * 0.06
+    var env2 = sin(PI * u) * sin(PI * u)
+    return (creak * env2 * 0.5 + lp * 0.9) * 0.28))
   # per-pane chime ladder: A-C-D-E-G pentatonic, ascending with each pane.
   # upper partials shrink as pitch rises so high notes stay soft on phone speakers.
   var ladder = [[440.0, 0.15], [523.25, 0.13], [587.33, 0.11], [659.25, 0.09], [783.99, 0.11]]
@@ -1505,6 +1513,8 @@ var idle_traced = false
 var vignette_traced = false
 var VIGHOLD = false
 var FLASHHOLD = false
+var GROANHOLD = false
+var groan_t = 9.0
 var flameLow = false
 var horn_t = 24.0
 var gust_dir = 1.0
@@ -1542,6 +1552,8 @@ func _ready():
     FINECAP = "finecap=1" in q
     VIGHOLD = "vighold=1" in q
     FLASHHOLD = "flashhold=1" in q
+    GROANHOLD = "groanhold=1" in q
+    if GROANHOLD: groan_t = 0.5
     DOORSHUT = "doorshut=1" in q
     DOOROPEN = "dooropen=1" in q
     DROPTEST = "droptest=1" in q
@@ -2234,6 +2246,12 @@ func _process(dt):
     if ST.phase == "play":
       ST.elapsed += dt
       ST.oil -= dt
+      groan_t -= dt
+      if groan_t <= 0.0:
+        groan_t = randf_range(16.0, 32.0) * (1.0 - 0.12 * (storm_level - 1))
+        if storm_level >= 3:
+          sfx("groan", -21.0, randf_range(0.85, 1.1))
+          print("[KTL] tower groans lvl=", storm_level, " t=", snapped(ST.elapsed, 0.1))
       if DROPTEST and not dropped and ST.elapsed > 1.0:  # debug: drop the keeper into the stair gap
         dropped = true
         ST.th = 10.15; ST.y = 12.0; ST.vy = 0.0; ST.grounded = false

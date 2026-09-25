@@ -1058,3 +1058,10 @@ pck hidden. Grounded frame eyeballed at 480x800: the keeper stands anchored
 on a dark elliptical pool inside the lantern light - compare cycle 69's
 storm-V frame where his feet met bare bright stone.
 Grade: PASS.
+
+## Cycle 72 - the ship comes home in frame (2026-09-25, ~5:45 AM IST)
+Grade: PASS (local; deploy pending at write time).
+Finding: the win card says "Somewhere out in the rain, a ship sets her course for home" and the ending scene HAS the ship - she sails, the beam finds her, a bell rings, she turns for home - but she started at (-58,0,-105), ~50 degrees off the ending camera's axis, entering the frame only ~19s in, long after the card (6.5s). The ending's signature moment played off-camera: a bell at an empty sea.
+Built: at the ending transition the ship now re-seats on a frame-crossing course (-4,0.1,-80), sailing the visible water from the first seconds; her cabin/masthead glows are strengthened (1.7/1.3) and a soft warm reflection glow (alpha 0.15) sits under her hull so the crossing reads on a phone. Per-run reset now also clears ship_turn/belled so repeat endings re-play the bell + turn. Added two traces: bell moment + mid-ending ship screen coords.
+Verified: check-only clean; export 109,248B; verify3 WON ok; local harness (pck removed, loader reassembled from 4 parts) - "bell for the ship at screen (429,968) endT=3.3", "ending ship at screen (457,969) endT=4.1" (960x1600 backing = right-center at the sea line, in frame), won elapsed clean, no new console errors (the one p_pattern USER ERROR is pre-existing engine noise - A/B'd against the live cycle-71 build, same count: 1). Frames c72-ship.png (crossing reads: two warm lights + faint reflection on black water) and c72-bell.png (beam sweeping toward her) eyeballed PASS.
+Also settled this cycle: storm-V oil budget audited with real numbers - 64 start + 24 (3 drops) + 25 (5 panes) = 113s vs ~16-20s optimal climb; healthy for humans by design, no patch. Low-oil signaling, thunder, storm-V win acknowledgment ("THE HIGHEST STORM HELD - THE SEA QUIETS") all audited as already present.

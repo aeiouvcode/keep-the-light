@@ -80,7 +80,8 @@ body {
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-<style>html,body{background:#0a0f18}#status{background-color:#0a0f18}#status-progress{width:230px;height:5px;border-radius:3px;-webkit-appearance:none;appearance:none}#status-progress::-webkit-progress-bar{background:#1c2740;border-radius:3px}#status-progress::-webkit-progress-value{background:#e8a94c;border-radius:3px}#status-progress::-moz-progress-bar{background:#e8a94c;border-radius:3px}#status-splash{max-width:180px}#status-notice{background:#f3ecd9;border:1px solid #d8cba8;border-radius:18px;box-shadow:0 10px 40px rgba(0,0,0,0.45);color:#2b2417;font-family:Georgia,'Times New Roman',serif;text-align:center;max-width:300px;line-height:1.5;padding:24px 26px;margin:0 16px}canvas{background:#0a0f18}</style>
+<style>html,body{background:#0a0f18}#status{background-color:#0a0f18}#status-progress{width:230px;height:5px;border-radius:3px;-webkit-appearance:none;appearance:none}#status-progress::-webkit-progress-bar{background:#1c2740;border-radius:3px}#status-progress::-webkit-progress-value{background:#e8a94c;border-radius:3px}#status-progress::-moz-progress-bar{background:#e8a94c;border-radius:3px}#status-splash{max-width:180px}#status-notice{font-family:Georgia,'Times New Roman',serif;color:#e8ddc8;text-align:center;max-width:26em;line-height:1.6;padding:24px 20px 0}canvas{background:#0a0f18}</style>
+
 	</head>
 	<body>
 		<canvas id="canvas">
@@ -99,7 +100,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":112192,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":143792,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
 const GODOT_THREADS_ENABLED = false;
 // Split-pack loader: the pck ships as base64 text parts (index.pck.b64.N) so it can
 // deploy through text-only channels. fetch() for index.pck is answered from the
@@ -177,8 +178,6 @@ const engine = new Engine(GODOT_CONFIG);
 			friendly = 'The lamp would not light this time.\nCheck your connection and reload.';
 		}
 		setStatusNotice(friendly);
-		document.getElementById('status-splash').style.display = 'none';
-		statusProgress.style.display = 'none';
 		setStatusMode('notice');
 		initializing = false;
 	}

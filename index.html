@@ -4,8 +4,6 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
 		<title>KEEP THE LIGHT</title>
-		<meta name="description" content="KEEP THE LIGHT - a tiny lighthouse-keeper climb. Gather the lost lens panes, mind the oil, and relight the lamp before the storm takes it.">
-		<meta name="theme-color" content="#0a0f18">
 		<style>
 html, body, #canvas {
 	margin: 0;
@@ -40,7 +38,7 @@ body {
 }
 
 #status {
-	background-color: #242424;
+	background-color: #0a0f18;
 	display: flex;
 	flex-direction: column;
 	justify-content: center;
@@ -52,6 +50,20 @@ body {
 	max-height: 100%;
 	max-width: 100%;
 	margin: auto;
+}
+
+#status-splash.show-image--false {
+	display: none;
+}
+
+#status-splash.fullsize--true {
+	height: 100%;
+	width: 100%;
+	object-fit: contain;
+}
+
+#status-splash.use-filter--false {
+	image-rendering: pixelated;
 }
 
 #status-progress, #status-notice {
@@ -80,7 +92,6 @@ body {
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-<style>html,body{background:#0a0f18}#status{background-color:#0a0f18}#status-progress{width:230px;height:5px;border-radius:3px;-webkit-appearance:none;appearance:none}#status-progress::-webkit-progress-bar{background:#1c2740;border-radius:3px}#status-progress::-webkit-progress-value{background:#e8a94c;border-radius:3px}#status-progress::-moz-progress-bar{background:#e8a94c;border-radius:3px}#status-splash{max-width:180px}#status-notice{font-family:Georgia,'Times New Roman',serif;color:#e8ddc8;text-align:center;max-width:26em;line-height:1.6;padding:24px 20px 0}canvas{background:#0a0f18}</style>
 
 	</head>
 	<body>
@@ -93,43 +104,15 @@ body {
 		</noscript>
 
 		<div id="status">
-			<img id="status-splash" src="index.png" alt="">
+			<img id="status-splash" class="show-image--true fullsize--false use-filter--false" src="index.png" alt="">
 			<progress id="status-progress"></progress>
 			<div id="status-notice"></div>
 		</div>
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":145552,"index.wasm":35376909},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":134392,"index.wasm":38057390},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
-// Split-pack loader: the pck ships as base64 text parts (index.pck.b64.N) so it can
-// deploy through text-only channels. fetch() for index.pck is answered from the
-// reassembled bytes; when no parts exist (local dev), the real index.pck loads.
-const PCK_PARTS = ['index.pck.b64.0', 'index.pck.b64.1', 'index.pck.b64.2', 'index.pck.b64.3'];
-let pckPartsPromise = null;
-function getPckParts() {
-	if (pckPartsPromise) return pckPartsPromise;
-	pckPartsPromise = Promise.all(PCK_PARTS.map((p) => window.__ktlRealFetch(p).then((r) => (r.ok ? r.text() : null)))).then((texts) => {
-		if (texts.every((t) => t === null)) return null;
-		if (texts.some((t) => t === null)) throw new Error('KEEP THE LIGHT: a pack part is missing');
-		const bin = atob(texts.join('').replace(/\s+/g, ''));
-		const bytes = new Uint8Array(bin.length);
-		for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-		return bytes;
-	});
-	return pckPartsPromise;
-}
-window.__ktlRealFetch = window.fetch.bind(window);
-window.fetch = function (url, opts) {
-	const s = String(url);
-	if (s.endsWith('index.pck') || s.includes('index.pck?')) {
-		return getPckParts().then((bytes) => {
-			if (bytes === null) return window.__ktlRealFetch(url, opts);
-			return new Response(bytes, {'status': 200, 'headers': {'Content-Type': 'application/octet-stream'}});
-		});
-	}
-	return window.__ktlRealFetch(url, opts);
-};
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {
@@ -168,16 +151,13 @@ const engine = new Engine(GODOT_CONFIG);
 
 	function displayFailureNotice(err) {
 		console.error(err);
-		const raw = (err instanceof Error) ? err.message : (typeof err === 'string' ? err : '');
-		let friendly;
-		if (raw.indexOf('pack part') !== -1 || raw.indexOf('KEEP THE LIGHT:') === 0) {
-			friendly = 'A piece of the tower failed to arrive.\nCheck your connection and reload - the climb is worth it.';
-		} else if (raw.indexOf('features required') !== -1 || raw.indexOf('WebGL') !== -1) {
-			friendly = 'This browser cannot keep the light.\nThe tower needs WebGL2 - a current browser will have it.';
+		if (err instanceof Error) {
+			setStatusNotice(err.message);
+		} else if (typeof err === 'string') {
+			setStatusNotice(err);
 		} else {
-			friendly = 'The lamp would not light this time.\nCheck your connection and reload.';
+			setStatusNotice('An unknown error occurred.');
 		}
-		setStatusNotice(friendly);
 		setStatusMode('notice');
 		initializing = false;
 	}
@@ -188,9 +168,15 @@ const engine = new Engine(GODOT_CONFIG);
 
 	if (missing.length !== 0) {
 		if (GODOT_CONFIG['serviceWorker'] && GODOT_CONFIG['ensureCrossOriginIsolationHeaders'] && 'serviceWorker' in navigator) {
+			let serviceWorkerRegistrationPromise;
+			try {
+				serviceWorkerRegistrationPromise = navigator.serviceWorker.getRegistration();
+			} catch (err) {
+				serviceWorkerRegistrationPromise = Promise.reject(new Error('Service worker registration failed.'));
+			}
 			// There's a chance that installing the service worker would fix the issue
 			Promise.race([
-				navigator.serviceWorker.getRegistration().then((registration) => {
+				serviceWorkerRegistrationPromise.then((registration) => {
 					if (registration != null) {
 						return Promise.reject(new Error('Service worker already exists.'));
 					}
@@ -200,10 +186,11 @@ const engine = new Engine(GODOT_CONFIG);
 				new Promise((resolve) => {
 					setTimeout(() => resolve(), 2000);
 				}),
-			]).catch((err) => {
-				console.error('Error while registering service worker:', err);
-			}).then(() => {
+			]).then(() => {
+				// Reload if there was no error.
 				window.location.reload();
+			}).catch((err) => {
+				console.error('Error while registering service worker:', err);
 			});
 		} else {
 			// Display the message as usual

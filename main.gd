@@ -75,28 +75,45 @@ func floor_at(th, y_ref):
 
 var panes = []
 var drops = []
-func pane_pos_list():
-  # per-run jitter: every climb lays the panes a little differently (guard: never in a stair gap)
-  var out = []
-  for th in [1.7, 7.6, 9.5, 16.3, 18.3]:
-    var th2 = th + (randf_range(-0.45, 0.45) if th < 18.0 else randf_range(-0.25, 0.25))
-    var guard = 0
-    while floor_at(th2, 99.0) < 0.5 and guard < 20:
-      th2 += 0.15
-      guard += 1
-    out.append({th=th2, y=floor_at(th2, 99.0) + 1.15, got=false, node=null})
-  return out
+var layout_rng = RandomNumberGenerator.new()
+# CHAPTERS c98: layout is a pure function of the tower seed - same seed, same climb
+# every session; a different tower, a different climb. Tower 1 keeps the original
+# base points and jitter RANGES (the distribution is unchanged; positions were
+# drawn from the time-seeded global RNG before, so they are deterministic now).
+# c99 XORs the date onto this for the daily variant.
+func today_int():
+  if DAY_OVERRIDE > 0: return DAY_OVERRIDE
+  if not OS.has_feature("web"): return 19700101
+  return int(JavaScriptBridge.eval("(function(){var d=new Date();return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();})()"))
 
-func drop_pos_list():
-  var out = []
-  for th in [4.5, 12.5, 17.0]:
-    var th2 = th + randf_range(-0.6, 0.6)
+func layout_seed(): return (tower_id().seed * 1000003) ^ (today_int() if daily_mode else 0)
+
+func seed_positions(list, bases, jitter, last_jitter, spread, y_off, rng_salt):
+  layout_rng.seed = layout_seed() + rng_salt
+  for i in list.size():
+    var th = bases[i]
+    if tower_id().seed != 1: th += layout_rng.randf_range(-spread, spread)
+    var j = jitter if i < bases.size() - 1 else last_jitter
+    th += layout_rng.randf_range(-j, j)
     var guard = 0
-    while floor_at(th2, 99.0) < 0.5 and guard < 20:
-      th2 += 0.15
+    while floor_at(th, 99.0) < 0.5 and guard < 20:
+      th += 0.15
       guard += 1
-    out.append({th=th2, y=floor_at(th2, 99.0) + 0.95, got=false, node=null})
-  return out
+    list[i].th = th
+    list[i].y = floor_at(th, 99.0) + y_off
+
+func seed_layout():
+  seed_positions(panes, [1.7, 7.6, 9.5, 16.3, 18.3], 0.45, 0.25, 0.85, 1.15, 0)
+  seed_positions(drops, [4.5, 12.5, 17.0], 0.6, 0.6, 0.7, 0.95, 500)
+  for p in panes:
+    if p.node: p.node.position = Vector3(R_SHELL*cos(p.th), p.y, R_SHELL*sin(p.th))
+  for d in drops:
+    if d.node: d.node.position = Vector3(R_SHELL*cos(d.th), d.y, R_SHELL*sin(d.th))
+  var lay = []
+  for p in panes: lay.append(snapped(p.th, 0.01))
+  var lay2 = []
+  for d in drops: lay2.append(snapped(d.th, 0.01))
+  print("[KTL] layout seed=", layout_seed(), " daily=", (today_int() if daily_mode else 0), " panes=", lay, " drops=", lay2)
 
 func place_radial(n, th, r, y):
   n.position = Vector3(r * cos(th), y, r * sin(th))
@@ -160,10 +177,26 @@ func build_audio():
     var sw = 0.5 + 0.5 * sin(t * 0.55 + sin(t * 0.23) * 1.5)
     return ((randf() * 2.0 - 1.0) * 0.22 + lp * 1.7) * 0.08 * sw * sin(PI * float(i) / n)))
   SND.surf.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.surf.loop_end = int(4.0 * SR)
+  # the crossing's water: a low bed, a hull lap on steer, a soft plash on hits
+  SND.rowwater = make_wav(synth(3.4, func(t, i, n, lp):
+    var lap = 0.55 + 0.45 * sin(t * 1.9 + sin(t * 0.7) * 1.2)
+    return ((randf() * 2.0 - 1.0) * 0.16 + lp * 1.9) * 0.07 * lap * sin(PI * float(i) / n)))
+  SND.rowwater.loop_mode = AudioStreamWAV.LOOP_FORWARD; SND.rowwater.loop_end = int(3.4 * SR)
+  SND.lap = make_wav(synth(0.28, func(t, i, n, lp):
+    var env = exp(-t * 14.0)
+    return (sin(TAU2 * (220.0 - t * 300.0) * t) * 0.4 + (randf() * 2.0 - 1.0 - lp * 0.8) * 0.3) * env * 0.5))
+  SND.plash = make_wav(synth(0.5, func(t, i, n, lp):
+    var env = exp(-t * 8.0)
+    return ((randf() * 2.0 - 1.0) * 0.5 + lp * 1.1) * env * 0.4))
   SND.thunder = make_wav(synth(2.8, func(t, i, n, lp):
     var env = exp(-t * 1.6)
     var r = (randf() * 2.0 - 1.0)
     return (r * 0.35 + lp * 1.4) * env * 0.45))
+  # the distant horn: a low two-tone foghorn that swells and lets go
+  SND.horn = make_wav(synth(3.2, func(t, i, n, lp):
+    var a = min(1.0, t / 0.55)
+    var d = exp(-max(0.0, t - 1.6) * 1.1)
+    return (sin(TAU * 62.0 * t) * 0.6 + sin(TAU * 93.0 * t) * 0.3) * a * d * 0.35))
   # the tower itself answers high storms: a low structural groan, pitch sagging
   # under the wind's push, kept dark and quiet under the low-pass feedback
   SND.groan = make_wav(synth(1.7, func(t, i, n, lp):
@@ -228,7 +261,9 @@ var base_rainv = -13.0
 var base_surfv = -20.0
 var win_swell_prev = 0.0
 func sfx(name, vol_db = 0.0, pitch = 1.0):
-  if not SND.has(name): return
+  if not SND.has(name):
+    print("[KTL] WARN sfx missing stream: ", name)
+    return
   var p = players.get(name)
   if p == null:
     p = AudioStreamPlayer.new()
@@ -247,6 +282,37 @@ func loop_sfx(name, vol_db):
   p.play()
   return p
 
+# the keeper's motif: a four-note music-box phrase in the tower's root, hummed
+# in pieces - begin sounds note 1, every pane answers with notes 1-2, a win
+# extends to 1-3, and the fourth note exists only at the capstone. The steps
+# are minor-pentatonic, so at tower 1 they land on the pane ladder's own tones.
+const MOTIF_STEPS = [0, 3, 7, 10]
+const MOTIF_GAP = 0.42
+const MOTIF_VOL = -14.0  # music, not feedback - under the pane chime's -6 dB
+var motif_built_root = -1
+func motif_build():
+  var root = tower_id().motif_root
+  if motif_built_root == root: return
+  motif_built_root = root
+  for i in MOTIF_STEPS.size():
+    var f = 440.0 * pow(2.0, float(root - 69 + MOTIF_STEPS[i]) / 12.0)
+    SND["motif" + str(i + 1)] = make_wav(synth(1.9, func(t, i2, n, lp):
+      var env = min(t * 250.0, 1.0) * exp(-t * 2.3)
+      var body = sin(TAU2 * f * t) + sin(TAU2 * f * 2.0 * t) * 0.28 + sin(TAU2 * f * 3.98 * t) * 0.10 + sin(TAU2 * f * 7.9 * t) * 0.03
+      return body * env * 0.4))
+func motif_play(count):
+  motif_build()
+  var root = tower_id().motif_root
+  print("[KTL] motif play notes=", count, " root=", root, " freq0=", snapped(440.0 * pow(2.0, float(root - 69) / 12.0), 0.01), " vol=", MOTIF_VOL)
+  for i in mini(count, MOTIF_STEPS.size()):
+    var nm = "motif" + str(i + 1)
+    if i == 0:
+      sfx(nm, MOTIF_VOL)
+    else:
+      var mtw = create_tween()
+      mtw.tween_interval(MOTIF_GAP * i)
+      mtw.tween_callback(func(): sfx(nm, MOTIF_VOL))
+
 # each storm owns a night: the five seas tint the sky, the moon and the dark itself
 const STORM_TINTS = [
   Color(1.0, 1.0, 1.0),     # I - the indigo they know
@@ -255,22 +321,49 @@ const STORM_TINTS = [
   Color(1.10, 0.83, 0.85),  # IV - rose
   Color(1.18, 0.70, 0.60),  # V - bruised ember
 ]
-func apply_storm_identity(lvl):
-  var t = STORM_TINTS[clampi(lvl, 1, STORM_MAX) - 1]
+# CHAPTERS: tower identities. Tower 1 is the original night (identity multipliers);
+# 2 and 3 take hold when the voyage unlocks them (cycle 97). seed/motif_root are
+# wired in their own cycles - this cycle introduces the table + tint substitution.
+const TOWERS = [
+  {name="THE FIRST LIGHT", tint=Color(1,1,1), moon=Color(1,1,1), gust=1.0, spark=1.0, groan=1.0, seed=1, motif_root=69, charge=0.0, squall=0.0},
+  {name="THE BASALT WATCH", tint=Color(0.82,0.90,1.10), moon=Color(0.90,0.95,1.10), gust=1.0, spark=1.6, groan=0.9, seed=2, motif_root=64, charge=1.0, squall=0.0},
+  {name="THE EMBER SHOAL", tint=Color(1.12,0.92,0.78), moon=Color(1.10,0.95,0.80), gust=1.5, spark=0.9, groan=1.1, seed=3, motif_root=67, charge=0.0, squall=1.4},
+]
+const LAMP_COLS = [Color(1.0, 0.9, 0.7), Color(0.62, 0.74, 1.0), Color(1.0, 0.66, 0.45)]  # tower lights (coast map + crossing lamp)
+var CHAPTER = 0
+var CHAPTER_OVERRIDE = -1
+var sail_pending = -1
+var end_to_coast = false
+var arrival_oil = -1.0  # the crossing's gift: -1 = none, else the next run's starting oil
+var cross_sel = -1
+var cross_water = null
+var last_lap_t = -9.0
+var finale_pending = false  # storm V at the last tower, no debug - the voyage's final capstone
+var PERF = false
+var DAILYHOOK = false
+var perf_acc = []
+var perf_t = 0.0
+var daily_mode = false
+var DAY_OVERRIDE = 0
+func tower_id(): return TOWERS[clampi(CHAPTER, 0, TOWERS.size() - 1)]
+
+func apply_storm_identity(lvl, for_title=false):
+  var t = STORM_TINTS[clampi(lvl, 1, STORM_MAX) - 1] * tower_id().tint
   var dark = 1.0 - 0.075 * (clampi(lvl, 1, STORM_MAX) - 1)  # the storm eats the sky
+  if for_title: dark = maxf(dark, 0.82)  # the title may menace, not erase - the unlit tower survives as a silhouette
   var bgt = Color(0.047, 0.067, 0.098) * t * dark
   env_tower.background_color = bgt
   env_tower.fog_light_color = bgt
   var bge = Color(0.039, 0.059, 0.094) * t * dark
   env_ext.background_color = bge
   env_ext.fog_light_color = bge
-  if hemi_moon_ref: hemi_moon_ref.light_color = Color(0.729, 0.788, 0.910) * t
+  if hemi_moon_ref: hemi_moon_ref.light_color = Color(0.729, 0.788, 0.910) * t * tower_id().moon
   if tower.has("sky_mats"):
     for sm in tower.sky_mats: sm.albedo_color = t
   if EXT.has("moon_mats"):
     for i2 in EXT.moon_mats.size():
       EXT.moon_mats[i2].emission = EXT.moon_base[i2] * t
-  print("[KTL] storm identity lvl=", lvl, " tint=", t, " dark=", snapped(dark, 0.01))
+  print("[KTL] storm identity lvl=", lvl, " tint=", t, " dark=", snapped(dark, 0.01), " tower=", tower_id().name)
 
 func apply_storm_audio():
   # the storm has a voice: deeper wind bed, denser rain and surf as the level rises
@@ -343,8 +436,17 @@ func tex_skywin():
     img.fill_rect(Rect2i(0, y, 128, 1), c)
   for i in 30:
     img.set_pixel(randi_range(0,127), randi_range(0,127), Color(1,1,1,0.6))
-  img.fill_rect(Rect2i(84, 88, 18, 18), Color(0.9, 0.94, 0.97, 0.9))
-  img.fill_rect(Rect2i(78, int(256*0.72), 28, 70), Color(0.59, 0.75, 0.86, 0.16))
+  for my in range(88 - 4, 88 + 22):  # c127: soft moon disc - lerp RGB, opaque materials ignore alpha
+    for mx in range(84 - 4, 84 + 22):
+      var d = Vector2(mx - 93, my - 97).length() / 13.0
+      if d < 1.0: img.set_pixel(mx, my, Color(0.027, 0.047, 0.086).lerp(Color(0.9, 0.94, 0.97), smoothstep(1.0, 0.55, d)))
+  for gy in range(int(256*0.72), int(256*0.72) + 70):  # c127: feathered glint column melts into the sea
+    var t2 = gy / 255.0
+    var base = Color(0.09, 0.135, 0.20) if t2 < 0.78 else Color(0.027, 0.047, 0.086)
+    for gx in range(78, 106):
+      var ex = minf(minf(gx - 78, 106 - gx) / 7.0, 1.0)
+      var ey = minf(minf(gy - int(256*0.72), int(256*0.72) + 70 - gy) / 9.0, 1.0)
+      img.set_pixel(gx, gy, base.lerp(Color(0.59, 0.75, 0.86), 0.55 * ex * ey))
   return ImageTexture.create_from_image(img)
 
 func tex_lampsky():
@@ -569,7 +671,7 @@ func build_tower(root):
     mk.call(Vector3(2.1 * wf,0.22,0.34), 0, 1.5)
     mk.call(Vector3(2.3 * wf,0.26,0.34), 0, -1.42)
     var skyq = MeshInstance3D.new()
-    var pm = PlaneMesh.new(); pm.size = Vector2(1.75 * wf, 3.1)
+    var pm = PlaneMesh.new(); pm.size = Vector2(1.75 * wf, 3.1); pm.orientation = PlaneMesh.FACE_Z  # c123: PlaneMesh defaults to FACE_Y (flat) - face the room
     skyq.mesh = pm
     var skym = StandardMaterial3D.new()
     skym.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -578,7 +680,7 @@ func build_tower(root):
     if not tower.has("sky_mats"): tower.sky_mats = []
     tower.sky_mats.append(skym)
     var fq = MeshInstance3D.new()
-    var fpm = PlaneMesh.new(); fpm.size = Vector2(1.75 * wf, 3.1)
+    var fpm = PlaneMesh.new(); fpm.size = Vector2(1.75 * wf, 3.1); fpm.orientation = PlaneMesh.FACE_Z  # c123
     fq.mesh = fpm
     var fmt = StandardMaterial3D.new()
     fmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -594,7 +696,7 @@ func build_tower(root):
     skyq.position.z = 0.06
     g.add_child(skyq)
     var rainq = MeshInstance3D.new()
-    var pm2 = PlaneMesh.new(); pm2.size = Vector2(1.75 * wf, 3.1)
+    var pm2 = PlaneMesh.new(); pm2.size = Vector2(1.75 * wf, 3.1); pm2.orientation = PlaneMesh.FACE_Z  # c123
     rainq.mesh = pm2
     var rainm = StandardMaterial3D.new()
     rainm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -608,7 +710,7 @@ func build_tower(root):
     # run-off: rain streaks the wall below the sill
     if not tower.has("win_drips"): tower.win_drips = []
     var dq = MeshInstance3D.new()
-    var dpm = PlaneMesh.new(); dpm.size = Vector2(1.5 * wf, 2.3)
+    var dpm = PlaneMesh.new(); dpm.size = Vector2(1.5 * wf, 2.3); dpm.orientation = PlaneMesh.FACE_Z  # c124
     dq.mesh = dpm
     var dmt = StandardMaterial3D.new()
     dmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -626,7 +728,7 @@ func build_tower(root):
     var vl = [[-0.42 * wf, -0.9, Color(1.0, 0.72, 0.42), 0], [0.31 * wf, -1.05, Color(1.0, 0.78, 0.5), 1]]
     for v in vl:
       var vq = MeshInstance3D.new()
-      var vpm = PlaneMesh.new(); vpm.size = Vector2(0.30, 0.30)
+      var vpm = PlaneMesh.new(); vpm.size = Vector2(0.30, 0.30); vpm.orientation = PlaneMesh.FACE_Z  # c124
       vq.mesh = vpm
       var vmt = StandardMaterial3D.new()
       vmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -640,7 +742,7 @@ func build_tower(root):
       tower.win_lights.append({m=vmt, ph=v[0] * 7.7, kind="village"})
     if wf > 1.0:
       var sq = MeshInstance3D.new()
-      var spm2 = PlaneMesh.new(); spm2.size = Vector2(0.34, 0.34)
+      var spm2 = PlaneMesh.new(); spm2.size = Vector2(0.34, 0.34); spm2.orientation = PlaneMesh.FACE_Z  # c124
       sq.mesh = spm2
       var smt = StandardMaterial3D.new()
       smt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -654,12 +756,12 @@ func build_tower(root):
       tower.win_lights.append({m=smt, ph=0.0, kind="ship"})
     if wf > 1.0:
       var spill = MeshInstance3D.new()
-      var spm = PlaneMesh.new(); spm.size = Vector2(3.6, 4.4)
+      var spm = PlaneMesh.new(); spm.size = Vector2(3.6, 4.4); spm.orientation = PlaneMesh.FACE_Z  # c124
       spill.mesh = spm
       var spmt = StandardMaterial3D.new()
       spmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
       spmt.albedo_texture = tower.glow_tex
-      spmt.albedo_color = Color(0.62, 0.74, 0.88, 0.4)
+      spmt.albedo_color = Color(0.62, 0.74, 0.88, 0.26)  # c128: pool, don't wash - 0.4 blew the lamp-lit floor to white up close
       spmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
       spmt.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
       spill.material_override = spmt
@@ -670,7 +772,7 @@ func build_tower(root):
       tower.spill_mat = spmt
       # a slanted shaft of moonlight from the window head down to the stair
       var beam = MeshInstance3D.new()
-      var bm2 = PlaneMesh.new(); bm2.size = Vector2(3.0, 3.9)
+      var bm2 = PlaneMesh.new(); bm2.size = Vector2(3.0, 3.9); bm2.orientation = PlaneMesh.FACE_Z  # c124
       beam.mesh = bm2
       var bmt = StandardMaterial3D.new()
       bmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -688,6 +790,7 @@ func build_tower(root):
     place_radial(g, th4, 6.97, y4)
     if wf > 1.0:
       g.rotation.y += 0.38  # bay the gallery window toward the climbing approach
+      tower.vista_node = skyq
     root.add_child(g)
 
   # the balcony door: the tower opens to the storm at the second landing -
@@ -701,7 +804,7 @@ func build_tower(root):
   bmk.call(Vector3(1.95,0.24,0.4), 0, 4.25, 0.0)
   bmk.call(Vector3(2.1,0.14,0.55), 0, 0.07, 0.05)
   var bq = MeshInstance3D.new()
-  var bpm = PlaneMesh.new(); bpm.size = Vector2(1.6, 3.6); bq.mesh = bpm
+  var bpm = PlaneMesh.new(); bpm.size = Vector2(1.6, 3.6); bpm.orientation = PlaneMesh.FACE_Z; bq.mesh = bpm  # c125
   var bqm = StandardMaterial3D.new()
   bqm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   bqm.albedo_texture = vista
@@ -713,7 +816,7 @@ func build_tower(root):
   bq.position = Vector3(0, 2.3, 0.08)
   bd.add_child(bq)
   var brq = MeshInstance3D.new()
-  var brpm = PlaneMesh.new(); brpm.size = Vector2(1.6, 3.6); brq.mesh = brpm
+  var brpm = PlaneMesh.new(); brpm.size = Vector2(1.6, 3.6); brpm.orientation = PlaneMesh.FACE_Z; brq.mesh = brpm  # c125
   var brm = StandardMaterial3D.new()
   brm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   brm.albedo_texture = rain_t
@@ -731,7 +834,7 @@ func build_tower(root):
     var bp = box(Vector3(0.05,1.12,0.05), brail); bp.position = Vector3(px, 0.56, 0.3); bd.add_child(bp)
   # moon-spill pooled on the landing at the threshold
   var bs = MeshInstance3D.new()
-  var bspm = PlaneMesh.new(); bspm.size = Vector2(2.6, 2.2); bs.mesh = bspm
+  var bspm = PlaneMesh.new(); bspm.size = Vector2(2.6, 2.2); bspm.orientation = PlaneMesh.FACE_Z; bs.mesh = bspm  # c125
   var bsm = StandardMaterial3D.new()
   bsm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   bsm.albedo_texture = tower.glow_tex
@@ -1015,6 +1118,24 @@ func card_style():
   s.content_margin_top = 24; s.content_margin_bottom = 22
   s.shadow_color = Color(0,0,0,0.5); s.shadow_size = 24
   return s
+func mk_card_shell(dim_alpha = 0.35):
+  var center = CenterContainer.new()
+  center.set_anchors_preset(Control.PRESET_FULL_RECT)
+  var dim = ColorRect.new()
+  dim.color = Color(0.02, 0.027, 0.043, dim_alpha)
+  dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+  center.add_child(dim)
+  var pc = PanelContainer.new()
+  pc.add_theme_stylebox_override("panel", card_style())
+  pc.custom_minimum_size = Vector2(340, 0)
+  var vb = VBoxContainer.new()
+  vb.add_theme_constant_override("separation", 10)
+  vb.alignment = BoxContainer.ALIGNMENT_CENTER
+  return [center, pc, vb]
+func card_shell_finish(sh):
+  sh[1].add_child(sh[2])
+  sh[0].add_child(sh[1])
+  return sh[0]
 func mk_label(txt, size, col, spacing = 0):
   var l = Label.new()
   l.text = txt
@@ -1040,18 +1161,8 @@ func mk_button(txt):
   b.custom_minimum_size = Vector2(220, 44)
   return b
 func mk_card(title, sub, body, btn):
-  var center = CenterContainer.new()
-  center.set_anchors_preset(Control.PRESET_FULL_RECT)
-  var dim = ColorRect.new()
-  dim.color = Color(0.02, 0.027, 0.043, 0.35)
-  dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-  center.add_child(dim)
-  var pc = PanelContainer.new()
-  pc.add_theme_stylebox_override("panel", card_style())
-  pc.custom_minimum_size = Vector2(340, 0)
-  var vb = VBoxContainer.new()
-  vb.add_theme_constant_override("separation", 10)
-  vb.alignment = BoxContainer.ALIGNMENT_CENTER
+  var sh = mk_card_shell()
+  var vb = sh[2]
   var glyph = Control.new(); glyph.custom_minimum_size = Vector2(64,64)
   glyph.set_script(GlyphDraw)
   vb.add_child(glyph); glyph.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -1062,9 +1173,179 @@ func mk_card(title, sub, body, btn):
   p.custom_minimum_size = Vector2(280, 0)
   vb.add_child(p)
   vb.add_child(btn); btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-  pc.add_child(vb)
-  center.add_child(pc)
-  return center
+  return card_shell_finish(sh)
+
+
+var MapDraw = GDScript.new()
+var CrossDraw = GDScript.new()
+func mk_map():
+  MapDraw.source_code = "extends Control\nsignal picked(i)\nvar unlocked = 0\nvar sel = 0\nvar cols = []  # set from LAMP_COLS at build - one canonical source\nfunc lamp(i):\n\treturn Vector2(60.0 + i * 95.0, size.y - 86.0)\nfunc _ready():\n\tmouse_filter = Control.MOUSE_FILTER_STOP\nfunc _draw():\n\tvar w = size.x\n\tvar h = size.y\n\tdraw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n\tfor sp in [Vector2(28, 18), Vector2(66, 40), Vector2(120, 14), Vector2(180, 30), Vector2(232, 12), Vector2(92, 56), Vector2(268, 46)]:\n\t\tdraw_circle(sp, 1.1, Color(0.7, 0.75, 0.85, 0.5))\n\tdraw_circle(Vector2(w - 46, 30), 15.0, Color(0.85, 0.88, 0.95, 0.10))\n\tdraw_circle(Vector2(w - 46, 30), 9.0, Color(0.85, 0.88, 0.95, 0.9))\n\tdraw_rect(Rect2(0, h - 44, w, 44), Color(0.05, 0.075, 0.11))\n\tfor gy in [h - 34, h - 24, h - 14]:\n\t\tdraw_line(Vector2(0, gy), Vector2(w, gy), Color(0.5, 0.62, 0.78, 0.12), 1.0)\n\tdraw_line(Vector2(w - 56, h - 30), Vector2(w - 36, h - 30), Color(0.85, 0.88, 0.95, 0.22), 2.0)\n\tdraw_colored_polygon(PackedVector2Array([Vector2(0, h - 40), Vector2(34, h - 52), Vector2(60, h - 58), Vector2(96, h - 48), Vector2(130, h - 55), Vector2(155, h - 62), Vector2(185, h - 50), Vector2(220, h - 56), Vector2(250, h - 60), Vector2(286, h - 46), Vector2(w, h - 42), Vector2(w, h - 44), Vector2(0, h - 44)]), Color(0.02, 0.03, 0.05))\n\tfor i in 3:\n\t\tvar lp = lamp(i)\n\t\tvar lit = i <= unlocked\n\t\tvar c = cols[i] if lit else Color(0.42, 0.44, 0.5)\n\t\tvar base = lp + Vector2(0, 40)\n\t\tdraw_colored_polygon(PackedVector2Array([base + Vector2(-5, 0), lp + Vector2(-3, 6), lp + Vector2(3, 6), base + Vector2(5, 0)]), c.darkened(0.6))\n\t\tvar d = 5.0\n\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(0, -d), lp + Vector2(d, 0), lp + Vector2(0, d), lp + Vector2(-d, 0)]), c)\n\t\tif lit:\n\t\t\tdraw_circle(lp, 9.0, Color(c.r, c.g, c.b, 0.15))\n\t\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(4, -2), lp + Vector2(46, -12), lp + Vector2(46, 4), lp + Vector2(4, 2)]), Color(c.r, c.g, c.b, 0.10))\n\t\tif i == sel:\n\t\t\tdraw_arc(lp, 13.0, 0.0, TAU, 24, Color(0.95, 0.92, 0.85, 0.9), 1.6)\nfunc _gui_input(ev):\n\tvar pos = Vector2(-1, -1)\n\tif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:\n\t\tpos = ev.position\n\tif ev is InputEventScreenTouch and ev.pressed:\n\t\tpos = ev.position\n\tif pos.x < 0.0:\n\t\treturn\n\tfor i in 3:\n\t\tif pos.distance_to(lamp(i)) < 26.0:\n\t\t\tif i <= unlocked:\n\t\t\t\tsel = i\n\t\t\t\tqueue_redraw()\n\t\t\tpicked.emit(i)"
+  MapDraw.reload()
+  var sh = mk_card_shell(0.55)
+  var vb = sh[2]
+  var h = mk_label("THE COAST", 27, ink())
+  vb.add_child(h)
+  var md = Control.new()
+  md.custom_minimum_size = Vector2(300, 150)
+  md.set_script(MapDraw)
+  md.set("cols", LAMP_COLS)
+  vb.add_child(md)
+  md.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+  var nm = mk_label("", 14, ink())
+  vb.add_child(nm)
+  var stl = mk_label("", 11, Color(0.29, 0.26, 0.22, 0.75))
+  vb.add_child(stl)
+  var row = HBoxContainer.new()
+  row.alignment = BoxContainer.ALIGNMENT_CENTER
+  row.add_theme_constant_override("separation", 10)
+  var back = mk_button("BACK")
+  back.custom_minimum_size = Vector2(110, 44)
+  var sail = mk_button("SAIL")
+  sail.custom_minimum_size = Vector2(160, 44)
+  var sd = StyleBoxFlat.new()
+  sd.bg_color = ink().darkened(0.4)
+  sd.corner_radius_top_left = 12; sd.corner_radius_top_right = 12
+  sd.corner_radius_bottom_left = 12; sd.corner_radius_bottom_right = 12
+  sd.content_margin_left = 28; sd.content_margin_right = 28
+  sd.content_margin_top = 12; sd.content_margin_bottom = 12
+  sail.add_theme_stylebox_override("disabled", sd)
+  sail.add_theme_color_override("font_disabled_color", cream().darkened(0.35))
+  row.add_child(back)
+  row.add_child(sail)
+  vb.add_child(row)
+  row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+  card_shell_finish(sh)
+  ui.map_md = md
+  ui.map_name = nm
+  ui.map_sub = stl
+  ui.map_sail = sail
+  md.connect("picked", _on_coast_pick)
+  back.pressed.connect(_on_coast_back)
+  sail.pressed.connect(_on_sail)
+  return sh[0]
+
+func mk_cross():
+  CrossDraw.source_code = "extends Control\nsignal arrived(h)\nsignal splashed(h)\nsignal steered(l)\nsignal settled(l, ms)\nvar running = false\nvar t = 0.0\nvar dur = 14.0\nvar lane = 1.0\nvar target_lane = 1\nvar hits = 0\nvar bands = []\nvar spawn_t = 0.0\nvar rng = RandomNumberGenerator.new()\nvar spray = 0.0\nvar steer_t0 = -1.0\nvar rect_traced = false\nvar lamp_col = Color(1.0, 0.9, 0.7)\nfunc _ready():\n	mouse_filter = Control.MOUSE_FILTER_STOP\nfunc begin(seed_n, col = Color(1.0, 0.9, 0.7)):\n	lamp_col = col\n	print('[KTL] cross lamp col=', lamp_col)\n	rng.seed = seed_n\n	t = 0.0; hits = 0; bands.clear(); lane = 1.0; target_lane = 1; spray = 0.0\n	spawn_t = 0.6\n	running = true\n	rect_traced = false\n	queue_redraw()\nfunc _process(dt):\n	if not running: return\n	t += dt\n	spray = max(0.0, spray - dt * 2.5)\n	lane = lerp(lane, float(target_lane), min(1.0, dt * 7.5))\n	if steer_t0 >= 0.0 and abs(lane - float(target_lane)) < 0.05:\n		settled.emit(target_lane, int((t - steer_t0) * 1000.0))\n		steer_t0 = -1.0\n	spawn_t -= dt\n	if spawn_t <= 0.0 and t < dur - 1.2:\n		spawn_t = rng.randf_range(0.7, 1.1)\n		bands.append([rng.randi_range(0, 2), -12.0, false])\n		print('[KTL] cross wave lane=', bands[-1][0])\n	var yb = size.y * 0.80\n	for b in bands:\n		b[1] += dt * size.y * 0.30\n		if not b[2] and b[1] > yb - 7.0 and b[1] < yb + 7.0 and b[0] == int(lane + 0.5):\n			b[2] = true\n			hits += 1\n			spray = 1.0\n			splashed.emit(hits)\n			print('[KTL] cross splash hits=', hits, ' lane=', b[0])\n	if t >= dur:\n		running = false\n		arrived.emit(hits)\n	queue_redraw()\nfunc _gui_input(ev):\n	print('[KTL] cross ev ', ev.get_class(), ' pos=', (ev.position if (ev is InputEventMouseButton or ev is InputEventMouseMotion) else Vector2(-9,-9)))\n	if not running: return\n	var pos = Vector2(-1, -1)\n	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT: pos = ev.position\n	elif ev is InputEventMouseMotion: pos = ev.position\n	elif ev is InputEventScreenTouch and ev.pressed: pos = ev.position\n	elif ev is InputEventScreenDrag: pos = ev.position\n	if pos.x < 0.0: return\n	var nl = clampi(int(pos.x / size.x * 3.0), 0, 2)\n	if nl != target_lane: steer_t0 = t\n	target_lane = nl\n	steered.emit(target_lane)\nfunc _draw():\n	var w = size.x\n	var h = size.y\n	draw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n	draw_circle(Vector2(w - 40, 26), 8.0, Color(0.85, 0.88, 0.95, 0.8))\n	var glow = 0.25 + 0.75 * min(1.0, t / dur)\n	draw_circle(Vector2(w * 0.5, 34), 6.0, Color(lamp_col, 0.25 * glow))\n	draw_colored_polygon(PackedVector2Array([Vector2(w * 0.5 - 3, 40), Vector2(w * 0.5 + 3, 40), Vector2(w * 0.5 + 2, 30), Vector2(w * 0.5 - 2, 30)]), Color(lamp_col, 0.8))\n	for i in 5:\n		var yy = h * 0.25 + i * h * 0.13 + sin(t * 0.9 + i * 1.7) * 3.0\n		draw_line(Vector2(0, yy), Vector2(w, yy), Color(0.5, 0.62, 0.78, 0.10 + 0.03 * i), 1.0)\n	for b in bands:\n		var lx = b[0] * w / 3.0\n		var al = 0.55 if not b[2] else 0.18\n		draw_line(Vector2(lx + 6, b[1]), Vector2(lx + w / 3.0 - 6, b[1] + 3.0), Color(0.72, 0.82, 0.95, al), 3.0)\n	var bx = (lane + 0.5) * w / 3.0\n	var by = h * 0.80\n	var bob = sin(t * 2.2) * 2.0\n	var heel = clampf((float(target_lane) - lane) * 0.4, -0.45, 0.45)\n	draw_set_transform(Vector2(bx, by + bob), heel, Vector2.ONE)\n	draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(11, 0), Vector2(7, 7), Vector2(-7, 7)]), Color(0.16, 0.13, 0.10))\n	draw_circle(Vector2(0, -5), 3.0, Color(1.0, 0.85, 0.55, 0.95))\n	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n	if spray > 0.0:\n		draw_circle(Vector2(bx, by - 2), 10.0 * spray, Color(0.75, 0.85, 0.95, 0.35 * spray))\n	draw_arc(Vector2(w * 0.5, 34), 12.0, -PI / 2.0, -PI / 2.0 + TAU * min(1.0, t / dur), 24, Color(lamp_col, 0.6), 2.0)"
+  CrossDraw.reload()
+  var sh = mk_card_shell(0.55)
+  var vb = sh[2]
+  vb.add_child(mk_label("THE CROSSING", 27, ink()))
+  var cd = Control.new()
+  cd.custom_minimum_size = Vector2(300, 190)
+  cd.set_script(CrossDraw)
+  vb.add_child(cd)
+  cd.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+  vb.add_child(mk_label("RIDE THE CALM WATER", 11, Color(0.29, 0.26, 0.22, 0.75)))
+  card_shell_finish(sh)
+  ui.cross_md = cd
+  cd.connect("arrived", _on_cross_arrived)
+  cd.connect("splashed", _on_cross_splash)
+  cd.connect("steered", func(l): print("[KTL] cross steer lane=", l))
+  cd.connect("steered", func(l): _on_cross_steered(l))
+  cd.connect("settled", func(l, ms): print("[KTL] cross lane settled lane=", l, " ms=", ms))
+  return sh[0]
+
+func _on_end_pressed():
+  if end_to_coast: _on_coast(true)
+  else: _on_begin()
+
+func _on_coast(from_capstone):
+  var cur = chapter_get()
+  var unlocked = mini(cur + (1 if from_capstone else 0), TOWERS.size() - 1)
+  ui.map_md.set("unlocked", unlocked)
+  ui.map_md.set("sel", unlocked)
+  ui.map_md.queue_redraw()
+  _coast_refresh(unlocked)
+  if from_capstone and cur == TOWERS.size() - 1 and finale_get() > 0:
+    # the voyage's last frame: the coast itself closes the story
+    ui.map_sub.text = "THE LIGHTS ALL BURN - THE VOYAGE IS HERS"
+    motif_play(4)
+    print("[KTL] coast finale - the voyage is hers")
+  ui.title.visible = false; ui.end.visible = false; ui.fail.visible = false
+  ui.map.visible = true
+  print("[KTL] coast shown chapter=", cur, " unlocked=", unlocked, " capstone=", from_capstone)
+
+func _coast_refresh(i):
+  var cur = chapter_get()
+  ui.map_name.text = TOWERS[i].name
+  if i == cur:
+    ui.map_sub.text = "THE KEEPER STANDS HERE"
+    ui.map_sail.disabled = true
+    ui.map_sail.text = "YOU ARE HERE"
+  elif i < cur:
+    ui.map_sub.text = "ITS LIGHT STILL BURNS"
+    ui.map_sail.disabled = false
+    ui.map_sail.text = "SAIL BACK"
+  else:
+    ui.map_sub.text = "THE NEXT LIGHT"
+    ui.map_sail.disabled = false
+    ui.map_sail.text = "SAIL"
+
+func _on_coast_pick(i):
+  if i > int(ui.map_md.get("unlocked")):
+    toast("THAT LIGHT IS NOT LIT YET")
+    print("[KTL] coast locked pick i=", i)
+    return
+  _coast_refresh(i)
+  print("[KTL] coast select i=", i, " name=", TOWERS[i].name)
+
+func _on_coast_back():
+  ui.map.visible = false
+  if ST.phase == "won":
+    ui.end.visible = true
+  else:
+    ui.title.visible = true
+  print("[KTL] coast back phase=", ST.phase)
+
+func _on_sail():
+  var sel = int(ui.map_md.get("sel"))
+  if STORM_OVERRIDE > 0 or FAST:
+    chapter_set(sel)  # emits the guarded-write trace
+    print("[KTL] sail guarded (debug) - staying ashore")
+    return
+  if sel > chapter_get():
+    _on_cross_start(sel)  # sailing forward earns the crossing; the light you leave still burns
+    return
+  chapter_set(sel)
+  sail_pending = sel
+  print("[KTL] sail to chapter=", sel, " name=", TOWERS[sel].name, " (instant)")
+  _on_begin()
+
+func _on_cross_start(sel):
+  cross_sel = sel
+  ui.map.visible = false
+  ui.cross.visible = true
+  ui.cross_md.call("begin", sel * 7919 + 5, LAMP_COLS[clampi(sel, 0, LAMP_COLS.size() - 1)])  # the sea is the sea - seeded per destination
+  cross_water = loop_sfx("rowwater", -20.0)
+  print("[KTL] cross water on")
+  print("[KTL] cross begin to=", sel, " name=", TOWERS[sel].name)
+
+func _on_cross_steered(l):
+  var now_s = Time.get_ticks_msec() / 1000.0
+  if now_s - last_lap_t < 0.3: return  # a drag is one lap, not a machine gun
+  last_lap_t = now_s
+  sfx("lap", -15.0, 0.9 + randf() * 0.25)
+  print("[KTL] cross lap lane=", l)
+
+func _on_cross_splash(h):
+  sfx("gust", -13.0, 0.7)  # spray over the bow
+  sfx("plash", -13.0, 0.9 + randf() * 0.2)
+  print("[KTL] cross splash h=", h)
+
+func _on_cross_arrived(h):
+  var oil = 90.0 if h == 0 else (80.0 if h <= 2 else 68.0)
+  arrival_oil = oil
+  ui.cross.visible = false
+  if cross_water != null:
+    cross_water.stop()
+    cross_water.queue_free()
+    players.erase("rowwater")
+    cross_water = null
+    print("[KTL] cross water off")
+  chapter_set(cross_sel)
+  sail_pending = cross_sel
+  print("[KTL] cross arrived hits=", h, " oil=", oil, " to=", TOWERS[cross_sel].name)
+  _on_begin()
 
 var GlyphDraw = GDScript.new()
 func build_hud():
@@ -1205,7 +1486,7 @@ func build_hud():
   layer.add_child(jumpb)
   ui.stick = stick; ui.knob = knob; ui.jumpb = jumpb
   # cards
-  var b1 = mk_button("BEGIN THE CLIMB"); b1.pressed.connect(_on_begin)
+  var b1 = mk_button("BEGIN THE CLIMB"); b1.pressed.connect(_on_begin_title)
   ui.title = mk_card("KEEP THE LIGHT", "A STORM-NIGHT ERRAND",
     "The lamp is out. Five lens panes lie scattered on the stair. Climb, gather them, and relight the light before the oil is gone.", b1)
   layer.add_child(ui.title)
@@ -1241,9 +1522,39 @@ func build_hud():
     tvb.add_child(heldrow)
     tvb.move_child(heldrow, 3)
     print("[KTL] title held pips=", mini(held_t, 10))
-  var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_begin)
+  if finale_get() > 0:
+    tsu.text = "THE LIGHTS ALL BURN - THE VOYAGE IS HERS"
+    print("[KTL] title finale - the lights all burn")
+  var tch = chapter_get()
+  if tch > 0:
+    tsu.text = TOWERS[tch].name + " - " + tsu.text
+    var bc = mk_button("THE COAST")
+    bc.pressed.connect(_on_coast.bind(false))
+    var tvb2 = ui.title.get_child(1).get_child(0)
+    tvb2.add_child(bc)
+    bc.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    print("[KTL] title tower=", TOWERS[tch].name, " coast button on")
+  var bd = mk_button("TODAY'S CLIMB")
+  bd.pressed.connect(_on_begin_daily)
+  var tvbd = ui.title.get_child(1).get_child(0)
+  tvbd.add_child(bd)
+  tvbd.move_child(bd, tvbd.get_children().find(b1) + 1)
+  bd.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+  var dbest = daily_best()
+  if dbest > 0.0:
+    bd.text = "TODAY'S CLIMB - " + fmt_time(dbest)
+  var st0 = daily_streak()
+  if st0 >= 7:
+    bd.text += " - A WEEK OF LIGHT"
+    print("[KTL] week of light streak=", st0)
+    sfx("chime1", -14.0, 0.9)
+  elif st0 >= 2:
+    bd.text += " - " + str(st0) + " DAYS RUNNING"
+  print("[KTL] title daily chip best=", fmt_time(dbest) if dbest > 0.0 else "none", " streak=", st0)
+  var b2 = mk_button("KEEP IT AGAIN"); b2.pressed.connect(_on_end_pressed)
   ui.end = mk_card("THE LIGHT HOLDS", "",
     "The beam turns again over black water. Somewhere out in the rain, a ship sets her course for home.", b2)
+  ui.end_btn = b2
   ui.end.visible = false
   layer.add_child(ui.end)
   var b3 = mk_button("TRY AGAIN"); b3.pressed.connect(_on_begin)
@@ -1251,6 +1562,13 @@ func build_hud():
     "The tower goes dark, and the rain keeps what it took. Another can of oil, another climb.", b3)
   ui.fail.visible = false
   layer.add_child(ui.fail)
+  ui.map = mk_map()
+  ui.map.visible = false
+  ui.cross = mk_cross()
+  ui.cross.visible = false
+  layer.add_child(ui.cross)
+  print("[KTL] hud check map=", ui.map != null, " cross=", ui.cross != null, " cross_md=", ui.cross_md != null)
+  layer.add_child(ui.map)
   var b4 = mk_button("RESUME"); b4.pressed.connect(toggle_pause)
   var controls_txt = "A/D, arrows or left stick - climb. SPACE or JUMP - jump. Drag - peek around the curve. Walk into a pane to take it. ESC - back to the stair."
   if is_touch:
@@ -1277,7 +1595,7 @@ func build_exterior():
   g.add_child(sea)
   # moon glint road: scrolling additive plane
   var road = MeshInstance3D.new()
-  var rp = PlaneMesh.new(); rp.size = Vector2(10, 140)
+  var rp = PlaneMesh.new(); rp.size = Vector2(10, 140); rp.orientation = PlaneMesh.FACE_Z  # c126: then rotation.x lays it flat on the sea
   road.mesh = rp
   var rm = StandardMaterial3D.new()
   rm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1297,7 +1615,7 @@ func build_exterior():
   EXT.moon_base = []
   for spec in [[20.0, 0.93, 0.95, 0.98, 0.95], [60.0, 0.62, 0.71, 0.85, 0.22]]:
     var q = MeshInstance3D.new()
-    var qp = PlaneMesh.new(); qp.size = Vector2(spec[0], spec[0])
+    var qp = PlaneMesh.new(); qp.size = Vector2(spec[0], spec[0]); qp.orientation = PlaneMesh.FACE_Z  # c126: face the camera
     q.mesh = qp
     var qm = StandardMaterial3D.new()
     qm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1417,7 +1735,7 @@ func build_exterior():
     rk.position = Vector3(randf_range(-30,45), 0, randf_range(-60,-25))
     g.add_child(rk)
     var fq = MeshInstance3D.new()
-    var fp = PlaneMesh.new(); fp.size = Vector2(rrad * 3.0, rrad * 3.0)
+    var fp = PlaneMesh.new(); fp.size = Vector2(rrad * 3.0, rrad * 3.0); fp.orientation = PlaneMesh.FACE_Z  # c126: then rotation.x lays it flat
     fq.mesh = fp
     var fm = StandardMaterial3D.new()
     fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -1444,17 +1762,33 @@ func build_exterior():
   rainmi.material_override = mat_glow(Color(0.56,0.65,0.76), 0.5, 0.4)
   g.add_child(rainmi)
   EXT.rain_mesh = rainmi.mesh
+  EXT.rain_mi = rainmi
   EXT.rain_mat = rainmi.material_override
   EXT.rain_drops = []
   for k in 300:
     EXT.rain_drops.append(Vector3(randf_range(-50,70), randf_range(0,45), randf_range(-80,20)))
+  # the rain is one static mesh, tiled for seamless wrap: per frame we scroll the
+  # node, not rebuild the buffer (600 verts/frame clear+upload -> two fmods)
+  EXT.rain_scroll = Vector2.ZERO
+  var rim = EXT.rain_mesh
+  rim.clear_surfaces()
+  rim.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
+  for d0 in EXT.rain_drops:
+    for xt in [-120.0, 0.0, 120.0]:
+      for yt in [0.0, 49.0]:
+        var p0 = Vector3(d0.x + xt, d0.y + yt, d0.z)
+        rim.surface_add_vertex(p0)
+        rim.surface_add_vertex(p0 + Vector3(0.14, -1.0, 0))
+  rim.surface_end()
   # clouds
   EXT.clouds = []
   for k in 6:
     var c2 = MeshInstance3D.new()
-    var cp = PlaneMesh.new(); cp.size = Vector2(randf_range(30,60), randf_range(6,11))
+    var cp = PlaneMesh.new(); cp.size = Vector2(randf_range(30,60), randf_range(6,11)); cp.orientation = PlaneMesh.FACE_Z  # c126: face the camera
     c2.mesh = cp
-    c2.material_override = mat_glow(Color(0.05,0.078,0.125), 1.0, 0.85)
+    var cm2 = mat_glow(Color(0.05,0.078,0.125), 1.0, 0.85)
+    cm2.albedo_texture = tower.glow_tex  # c129: soft banks, not rectangles (alpha mode on, glow fades to 0)
+    c2.material_override = cm2
     c2.position = Vector3(randf_range(-90,90), randf_range(28,48), randf_range(-140,-80))
     g.add_child(c2)
     EXT.clouds.append(c2)
@@ -1513,6 +1847,12 @@ var mouse_lb = false
 var is_touch = false
 var toast_t = 0.0
 var thunder_t = 7.0
+var charge_t = 0.0     # BASALT setpiece: seconds left in the charged window
+var charge_move = 0.0  # movement accumulated inside the window
+var charge_jolted = false  # one snap per window
+var squall_t = 0.0     # EMBER setpiece: lull countdown before the back-gust
+var squall_dir = 0.0   # back-gust direction (reverse of the first shove)
+var squall_mag = 0.0   # back-gust magnitude (1.4x the first shove)
 var gust_t = 6.0
 var gust_vis = 0.0
 var ambient_hi_traced = false
@@ -1525,8 +1865,13 @@ var look_up = 0.0
 var idle_traced = false
 var vignette_traced = false
 var VIGHOLD = false
+var VISTADBG = false
+var VISTAHOLD = 0  # freeze harness: 1 = gallery vista, 2 = balcony door
+var vista_dbg_done = false
 var FLASHHOLD = false
 var GROANHOLD = false
+var CROSSHOOK = false
+var CROSS2 = false
 var groan_t = 9.0
 var flameLow = false
 var horn_t = 24.0
@@ -1544,7 +1889,9 @@ var flash2_armed = false
 var title_t = 0.0
 var stat_t = 0.0
 
-func press_jump(): jumpBuf = 0.12
+func press_jump():
+  jumpBuf = 0.12
+  print("[KTL] JUMPBUF set")
 
 func _ready():
   randomize()
@@ -1552,18 +1899,31 @@ func _ready():
     var q = str(JavaScriptBridge.eval("window.location.search"))
     AUTO = "auto=1" in q
     FAST = "fast=1" in q
+    PERF = "perf=1" in q
+    DAILYHOOK = "daily=1" in q
     var mo = q.find("startoil=")
     if mo >= 0: START_OIL = clamp(q.substr(mo + 9, 4).to_float(), 5.0, 80.0); startoil_given = true
     var mst = q.find("storm=")
     if mst >= 0: STORM_OVERRIDE = clampi(q.substr(mst + 6, 2).to_int(), 1, 5)
+    var mch = q.find("chapter=")
+    if mch >= 0: CHAPTER_OVERRIDE = clampi(q.substr(mch + 8, 2).to_int(), 0, TOWERS.size() - 1)
+    var mdy = q.find("day=")
+    if mdy >= 0: DAY_OVERRIDE = clampi(q.substr(mdy + 4, 8).to_int(), 0, 99999999)
     GUSTHOLD = "gusthold=1" in q
     LANDHOLD = "landhold=1" in q
     SHAKEHOLD = "shakehold=1" in q
     BURSTHOLD = "bursthold=1" in q
     BALCONYHOLD = "balconyhold=1" in q
     CLICKLOG = "clicklog=1" in q
+    CROSSHOOK = "cross=1" in q
+    CROSS2 = "cross=2" in q
     FINECAP = "finecap=1" in q
     VIGHOLD = "vighold=1" in q
+    VISTADBG = "vistadebug=1" in q
+    if "vistahold=4" in q: VISTAHOLD = 4
+    elif "vistahold=3" in q: VISTAHOLD = 3
+    elif "vistahold=2" in q: VISTAHOLD = 2
+    elif "vistahold=1" in q: VISTAHOLD = 1
     FLASHHOLD = "flashhold=1" in q
     GROANHOLD = "groanhold=1" in q
     if GROANHOLD: groan_t = 0.5
@@ -1576,13 +1936,15 @@ func _ready():
     var args = OS.get_cmdline_user_args()
     AUTO = "--auto" in args
     FAST = "--fast" in args
+  CHAPTER = chapter_get()
   is_touch = DisplayServer.is_touchscreen_available()
   build_audio()
   loop_sfx("rain", -13.0)
   loop_sfx("wind", -17.0)
   loop_sfx("surf", -20.0)
-  panes = pane_pos_list()
-  drops = drop_pos_list()
+  for i in 5: panes.append({th=0.0, y=0.0, got=false, node=null})
+  for i in 3: drops.append({th=0.0, y=0.0, got=false, node=null})
+  seed_layout()
   # tower environment
   env_tower.background_mode = Environment.BG_COLOR
   env_tower.background_color = Color(0.047, 0.067, 0.098)
@@ -1663,8 +2025,14 @@ func _ready():
     apply_mute(true, true)
     print("[KTL] mute restored off")
   print("[KTL] ready")
+  if CROSSHOOK or CROSS2:
+    _on_cross_start(2 if CROSS2 else 1)  # debug: open the crossing directly (capture hook)
+    print("[KTL] cross hook open (debug)")
   if AUTO:
     await get_tree().create_timer(0.4).timeout
+    if DAILYHOOK:
+      daily_mode = true  # debug hook: auto takes the daily path
+      print("[KTL] daily begin day=", today_int())
     reset_run()
 
 func layout_hud():
@@ -1685,8 +2053,7 @@ func toggle_mute():
   ui.muteb.modulate.a = 0.45 if muted else 1.0
   toast("SOUND OFF" if muted else "SOUND ON")
   print("[KTL] mute ", "off" if muted else "on")
-  if OS.has_feature("web"):
-    JavaScriptBridge.eval("localStorage.setItem('ktl_mute','" + ("1" if muted else "0") + "')")
+  store_set("ktl_mute", "1" if muted else "0")
 
 func apply_mute(m, quiet = false):
   muted = m
@@ -1741,6 +2108,7 @@ func _input(ev):
       elif pause_chip_hit(ev.position): toggle_pause()
   if ev is InputEventScreenTouch:
     if ev.pressed:
+      print("[KTL] touch idx=", ev.index, " pos=", ev.position, " vs=", get_viewport().get_visible_rect().size)
       var vs = get_viewport().get_visible_rect().size
       var chip_ok = chip_tap_guard(ev.position)
       if chip_ok and mute_chip_hit(ev.position):
@@ -1779,6 +2147,15 @@ func _input(ev):
       peek_traced = true
       print("[KTL] peek=", snapped(peek, 0.01))
 
+func _on_begin_title():
+  daily_mode = false
+  _on_begin()
+
+func _on_begin_daily():
+  daily_mode = true
+  print("[KTL] daily begin day=", today_int())
+  _on_begin()
+
 func _on_begin():
   reset_run()
 
@@ -1797,9 +2174,15 @@ func reset_run():
     if not DOOROPEN:  # DOOROPEN holds the door ajar for capture
       var dtw = create_tween()
       dtw.tween_interval(0.35)
-      dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.55).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+      # heavy wood: swing a breath PAST shut; the frame throws it back once
+      dtw.tween_property(tower.door_panel, "rotation:y", -0.045, 0.5).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
       dtw.tween_callback(func(): sfx("land", -13.0, 0.62); print("[KTL] door shut"))
+      dtw.tween_property(tower.door_panel, "rotation:y", 0.0, 0.22).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+      dtw.tween_callback(func(): sfx("clink", -19.0, 0.85); print("[KTL] door latched"))
   storm_level = storm_level_get()
+  CHAPTER = sail_pending if sail_pending >= 0 else chapter_get()
+  sail_pending = -1
+  seed_layout()
   apply_storm_audio()
   EXT.ship.position = Vector3(-58, 0, -105)
   EXT.ship.rotation = Vector3.ZERO
@@ -1811,13 +2194,18 @@ func reset_run():
   storm_base = 0.08 * (storm_level - 1)
   gust_scale = 1.0 - 0.1 * (storm_level - 1)
   var oil_eff = START_OIL if startoil_given else 80.0 - 4.0 * (storm_level - 1)
+  if arrival_oil >= 0.0:
+    oil_eff = arrival_oil
+    arrival_oil = -1.0
+    print("[KTL] arrival oil=", oil_eff)
   print("[KTL] storm level L=", storm_level, " oil=", oil_eff, " gustx=", snapped(gust_scale, 0.01))
   ui.stormchip.text = "STORM " + roman(storm_level)
   ui.stormchip.visible = storm_level > 1
   ST.oil = oil_eff; ST.panes = 0; ST.elapsed = 0.0; ST.lowWarned = false; ST.warnedTop = false; ST.warnedGap = false; flameLow = false; ST.beats = 0; sputter_t = 0.0; sputter_n = 0; ST.eyeSeen = false
-  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false
+  finale_pending = storm_level == STORM_MAX and CHAPTER == TOWERS.size() - 1 and STORM_OVERRIDE == 0 and not FAST
+  ST.relightT = 0.0; ST.endT = 0.0; phase2T = 0.0; fly.clear(); storm_gives_traced = false; idle_t = 0.0; look_up = 0.0; idle_traced = false; vista_dbg_done = false
   if players.has("rain") and players["rain"] != null: players["rain"].volume_db = -13.0
-  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false; wind_marks.clear()
+  ST.gust_v = 0.0; gust_t = 6.0; gust_pending = 0.0; charge_t = 0.0; charge_move = 0.0; charge_jolted = false; squall_t = 0.0; squall_dir = 0.0; squall_mag = 0.0; gap_air = false; gap_cleared = false; gap_glow = 0.0; balcony_traced = false; wind_marks.clear()
   stick_id = -1; stick_x = 0.0; peek_id = -1  # no stale touch survives a restart
   for i in panes.size():
     panes[i].got = false
@@ -1833,7 +2221,7 @@ func reset_run():
   tower.beam_group.visible = false
   tower.beam_mat.albedo_color.a = 0.0
   ui.dim.color.a = 0.0
-  ui.title.visible = false; ui.end.visible = false; ui.fail.visible = false
+  ui.title.visible = false; ui.end.visible = false; ui.fail.visible = false; ui.map.visible = false; ui.cross.visible = false
   EXT.root.visible = false
   for wg in EXT.win_glows:
     wg.core.modulate.a = 0.0; wg.halo.modulate.a = 0.0; wg.traced = false
@@ -1852,10 +2240,16 @@ func reset_run():
     stw.tween_property(ui.stick, "color:a", 0.42, 0.5)
     stw.tween_property(ui.stick, "color:a", 0.14, 0.6)
     print("[KTL] touch hint shown")
-  if storm_level > 1 and not hint_was_pending:
+  if CHAPTER > 0 and not hint_was_pending:
+    toast(tower_id().name + " - STORM " + roman(storm_level))
+    print("[KTL] tower boot name=", tower_id().name, " chapter=", CHAPTER)
+  elif storm_level > 1 and not hint_was_pending:
     toast("STORM " + roman(storm_level) + " - THE SEA IS HIGHER")
     print("[KTL] storm toast lvl=", storm_level)
+  if daily_mode and not hint_was_pending:
+    toast("TODAY'S CLIMB - THE SEA SHIFTED")
   print("[KTL] begin")
+  motif_play(1)  # the keeper hums the first note as she sets out
 
 func ignite():
   sfx("ignite", -4.0)
@@ -1918,58 +2312,131 @@ func fail_run():
   if ST.phase == "fail": ui.fail.visible = true
   print("[KTL] fail panes=", ST.panes)
 
+func store_get(key):
+  if not OS.has_feature("web"): return ""
+  return str(JavaScriptBridge.eval("localStorage.getItem('" + key + "')||''"))
+func store_set(key, val):
+  if not OS.has_feature("web"): return
+  JavaScriptBridge.eval("localStorage.setItem('" + key + "','" + str(val) + "')")
+
 func best_time():
-  if not OS.has_feature("web"): return 0.0
-  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_best')||''")
-  return float(v) if str(v) != "" else 0.0
+  var v = store_get("ktl_best")
+  return float(v) if v != "" else 0.0
+
+func daily_best():
+  # the daily best is keyed to the day it was run: "yyyymmdd:seconds"
+  var v = store_get("ktl_daily_best")
+  var parts = v.split(":")
+  if parts.size() != 2 or int(parts[0]) != today_int(): return 0.0
+  return float(parts[1])
+
+func daily_best_set(t):
+  if STORM_OVERRIDE > 0 or FAST:
+    print("[KTL] daily best write guarded (debug)")
+    return
+  store_set("ktl_daily_best", str(today_int()) + ":" + str(t))
+  print("[KTL] daily best set=", fmt_time(t), " day=", today_int())
+
+func daily_log_get():
+  return store_get("ktl_daily_log")
+func daily_log_bank():
+  if STORM_OVERRIDE > 0 or FAST: return  # debug runs never bank the habit
+  if not OS.has_feature("web"): return
+  var t = str(today_int())
+  var days = Array(daily_log_get().split(",", false))
+  if t in days: return
+  days.append(t)
+  while days.size() > 31: days.pop_front()
+  store_set("ktl_daily_log", ",".join(days))
+  print("[KTL] daily log banked day=", t, " n=", days.size())
+func day_index(yint):
+  var y = yint / 10000
+  var m = (yint / 100) % 100
+  var d = yint % 100
+  return int(Time.get_unix_time_from_datetime_string("%04d-%02d-%02dT00:00:00" % [y, m, d]) / 86400.0)
+func daily_streak():
+  var raw = daily_log_get()
+  if raw == "": return 0
+  var idx = {}
+  for ds in raw.split(",", false):
+    idx[day_index(int(ds))] = true
+  var a0 = day_index(today_int())
+  if not idx.has(a0): a0 -= 1  # today unplayed: the streak is still alive, anchored yesterday
+  var n = 0
+  while idx.has(a0 - n): n += 1
+  return n
 
 func roman(n):
   return ["I", "II", "III", "IV", "V"][clampi(n, 1, 5) - 1]
 
 func storm_level_get():
   if STORM_OVERRIDE > 0: return STORM_OVERRIDE
-  if not OS.has_feature("web"): return 1
-  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_storm')||''")
-  return clampi(int(v) if str(v) != "" else 1, 1, STORM_MAX)
+  var v = store_get("ktl_storm")
+  return clampi(int(v) if v != "" else 1, 1, STORM_MAX)
+
+func chapter_get():
+  if CHAPTER_OVERRIDE >= 0: return clampi(CHAPTER_OVERRIDE, 0, TOWERS.size() - 1)
+  var v = store_get("ktl_chapter")
+  return clampi(int(v) if v != "" else 0, 0, TOWERS.size() - 1)
 
 func storm_level_set(n):
   if STORM_OVERRIDE > 0: return  # debug runs never touch the stored streak
-  if not OS.has_feature("web"): return
-  JavaScriptBridge.eval("localStorage.setItem('ktl_storm','" + str(clampi(n, 1, STORM_MAX)) + "')")
+  store_set("ktl_storm", clampi(n, 1, STORM_MAX))
 
 func storms_held_get():
   # the capstone tally: how many times the highest storm has been held
-  if not OS.has_feature("web"): return 0
-  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_held')||''")
-  return maxi(0, int(v) if str(v) != "" else 0)
+  var v = store_get("ktl_held")
+  return maxi(0, int(v) if v != "" else 0)
 
 func storms_held_set(n):
   if STORM_OVERRIDE > 0: return  # debug runs never touch the tally
-  if not OS.has_feature("web"): return
-  JavaScriptBridge.eval("localStorage.setItem('ktl_held','" + str(maxi(0, n)) + "')")
+  store_set("ktl_held", maxi(0, n))
 
 func calm_flag_get():
   # the calm sea is EARNED: set only when the highest storm is banked,
   # cleared when a fail takes the streak back to level I
-  if not OS.has_feature("web"): return 0
-  var v = JavaScriptBridge.eval("localStorage.getItem('ktl_calm')||''")
-  return int(v) if str(v) != "" else 0
+  var v = store_get("ktl_calm")
+  return int(v) if v != "" else 0
 
 func calm_flag_set(n):
   if STORM_OVERRIDE > 0: return  # debug runs never touch the calm flag
+  store_set("ktl_calm", clampi(n, 0, 1))
+
+func finale_get():
+  var v = store_get("ktl_finale")
+  return maxi(0, int(v) if v != "" else 0)
+func finale_set(n):
+  if STORM_OVERRIDE > 0 or FAST: return  # debug runs never bank the finale
+  store_set("ktl_finale", clampi(n, 0, 1))
+
+func chapter_set(n):
+  # the voyage unlock: earned only in a real run - debug runs never write it,
+  # and the stored voyage only moves forward (sailing back is session-only)
+  if STORM_OVERRIDE > 0 or FAST:
+    print("[KTL] chapter write guarded (debug)")
+    return
   if not OS.has_feature("web"): return
-  JavaScriptBridge.eval("localStorage.setItem('ktl_calm','" + str(clampi(n, 0, 1)) + "')")
+  n = clampi(n, 0, TOWERS.size() - 1)
+  if n <= chapter_get(): return
+  store_set("ktl_chapter", n)
+  print("[KTL] chapter set=", n)
 
 func win_run():
   ST.phase = "won"
-  var prev = best_time()
+  if daily_mode:
+    daily_log_bank()
+  var prev = daily_best() if daily_mode else best_time()
   var is_best = OS.has_feature("web") and STORM_OVERRIDE == 0 and not FAST and (prev <= 0.0 or ST.elapsed < prev)
   if is_best:
-    JavaScriptBridge.eval("localStorage.setItem('ktl_best','" + str(ST.elapsed) + "')")
-    print("[KTL] new best ", fmt_time(ST.elapsed))
+    if daily_mode:
+      daily_best_set(ST.elapsed)
+      print("[KTL] new daily best ", fmt_time(ST.elapsed))
+    else:
+      store_set("ktl_best", ST.elapsed)
+      print("[KTL] new best ", fmt_time(ST.elapsed))
   var next_level = mini(storm_level + 1, STORM_MAX)
   var held_now = 0
-  if storm_level == STORM_MAX and STORM_OVERRIDE == 0:
+  if storm_level == STORM_MAX and STORM_OVERRIDE == 0 and not FAST:
     # the capstone: holding the highest storm banks it and the sea quiets back to I
     held_now = storms_held_get() + 1
     storms_held_set(held_now)
@@ -1978,23 +2445,46 @@ func win_run():
     print("[KTL] storm held total=", held_now, " calm earned")
   storm_level_set(next_level)
   print("[KTL] storm level next=", next_level)
+  var finale_now = held_now > 0 and CHAPTER == TOWERS.size() - 1
+  if finale_now:
+    finale_set(1)
+    print("[KTL] finale - the last light held")
+  end_to_coast = held_now > 0 and (CHAPTER < TOWERS.size() - 1 or finale_now)
+  ui.end_btn.text = "SEE THE LIGHTS" if finale_now else ("SEE THE COAST" if end_to_coast else "KEEP IT AGAIN")
   var sub = ui.end.find_child("", true, false)
   var labels = []
   _collect_labels(ui.end, labels)
   if labels.size() > 1:
+    var climb_word = "TODAY'S CLIMB TOOK " if daily_mode else "THE CLIMB TOOK "
     if is_best:
-      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - A NEW BEST"
+      labels[1].text = climb_word + fmt_time(ST.elapsed) + (" - A NEW DAILY BEST" if daily_mode else " - A NEW BEST")
     elif prev > 0.0:
-      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - BEST " + fmt_time(prev)
+      labels[1].text = climb_word + fmt_time(ST.elapsed) + (" - TODAY'S BEST " if daily_mode else " - BEST ") + fmt_time(prev)
+    if daily_mode:
+      var stn = daily_streak()
+      if stn >= 2:
+        labels[1].text += " - " + str(stn) + " DAYS RUNNING"
+        print("[KTL] daily win streak=", stn)
+        if stn % 7 == 0:
+          var wk = stn / 7
+          var wword = ["A", "TWO", "THREE", "FOUR"][mini(wk, 4) - 1] if wk <= 4 else str(wk)
+          labels[1].text += " - " + wword + (" WEEK" if wk == 1 else " WEEKS") + " OF LIGHT"
+          print("[KTL] daily milestone weeks=", wk, " streak=", stn)
     else:
-      labels[1].text = "THE CLIMB TOOK " + fmt_time(ST.elapsed) + " - 5 PANES"
+      labels[1].text = climb_word + fmt_time(ST.elapsed) + " - 5 PANES"
     if storm_level < STORM_MAX:
       labels[1].text += " - STORM " + roman(next_level) + " AWAITS"
     else:
       labels[1].text += " - THE HIGHEST STORM HELD"
       if held_now > 0:
         labels[1].text += " - THE SEA QUIETS"
+        if finale_now:
+          labels[1].text += " - THE LIGHTS ALL BURN"
+        elif end_to_coast:
+          labels[1].text += " - THE COAST WAITS"
     print("[KTL] win card: ", labels[1].text)
+  # the tune extends at every win; its last note exists only at the capstone
+  motif_play(4 if held_now > 0 else 3)
   ui.end.visible = true
   print("[KTL] won elapsed=", ST.elapsed, " is_best=", is_best)
 
@@ -2025,7 +2515,26 @@ func auto_dir():
   return dir
 
 var trace_t = 0.0
+func clouds_step(dt):
+  for i4 in EXT.clouds.size():
+    var c3 = EXT.clouds[i4]
+    c3.position.x += dt * (0.6 + i4 * 0.15)
+    if c3.position.x > 110: c3.position.x = -110
+
 func _process(dt):
+  if PERF:
+    perf_acc.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
+    perf_t += dt
+    if perf_t >= 5.0:
+      var pa = perf_acc.duplicate()
+      pa.sort()
+      var p95 = pa[mini(int(pa.size() * 0.95), pa.size() - 1)]
+      var pavg = 0.0
+      for v in pa: pavg += v
+      pavg /= max(1, pa.size())
+      print("[KTL] perf window n=", pa.size(), " avg=", snapped(pavg, 0.01), " p95=", snapped(p95, 0.01), " ms")
+      perf_acc.clear()
+      perf_t = 0.0
   dt = min(dt, 0.05) * (3.0 if FAST else 1.0)
   if AUTO:
     trace_t += dt
@@ -2042,7 +2551,7 @@ func _process(dt):
     storm_h = clamp(storm_h - 0.55 * exp(-pow(ST.th - 14.5, 2.0) / 2.5), 0.0, 1.0)  # the eye of the storm
   thunder_t -= dt
   if thunder_t <= 0:
-    thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h))
+    thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h)) / tower_id().spark
     flashV = 1.0
     flash2_armed = true
     var dist = randf()
@@ -2051,6 +2560,10 @@ func _process(dt):
     thunder_pitch = 1.05 - dist * 0.2
     shake_cur = max(shake_cur, 1.0 - dist)
     print("[KTL] lightning delay=", snapped(thunder_pending, 0.01), " next=", snapped(thunder_t, 0.01), " h=", snapped(storm_h, 0.01), " shake=", snapped(1.0 - dist, 0.01))
+    if tower_id().charge > 0.0 and dist < 0.35 and ST.phase == "play":
+      charge_t = 2.5; charge_move = 0.0; charge_jolted = false
+      sfx("sputter", -17.0, 0.5)  # the shell crackles - brace or pay static
+      print("[KTL] static charge window=2.5 dist=", snapped(dist, 0.01))
   if players.has("wind"):
     # the climb buys exposure: the wind bed lifts and thins with altitude
     var alt = clamp(ST.y / 19.0, 0.0, 1.0)
@@ -2081,12 +2594,26 @@ func _process(dt):
   if gust_pending > 0.0:
     gust_pending -= dt
     if gust_pending <= 0.0 and ST.phase == "play":
-      ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * gust_dir
+      ST.gust_v = randf_range(0.25, 0.5) * (0.4 + 0.6 * storm_h) * tower_id().gust * gust_dir
       sfx("gust", -13.0 + 2.0 * storm_h, randf_range(0.9, 1.1) * (1.0 - 0.03 * (storm_level - 1)))
       gust_vis = 1.0
       print("[KTL] gust hits dir=", gust_dir, " v=", snapped(ST.gust_v, 0.01), " h=", snapped(storm_h, 0.01))
+      if tower_id().squall > 0.0:
+        squall_t = 1.2; squall_dir = -gust_dir; squall_mag = abs(ST.gust_v) * tower_id().squall
+        sfx("gust", -19.0, 1.15)  # the answering whistle - the lull is not the all-clear
+        print("[KTL] squall gust armed back-dir=", squall_dir, " mag=", snapped(squall_mag, 0.01), " lull=1.2")
+  # EMBER setpiece: the squall's second act - a stronger reverse shove after the lull
+  if squall_t > 0.0:
+    squall_t -= dt
+    if squall_t <= 0.0:
+      squall_t = 0.0
+      if ST.phase == "play":
+        ST.gust_v = squall_mag * squall_dir
+        gust_vis = 1.0
+        sfx("gust", -12.0 + 2.0 * storm_h, randf_range(0.85, 1.0))
+        print("[KTL] squall back-gust dir=", squall_dir, " v=", snapped(ST.gust_v, 0.01))
   if gust_t <= 0 and ST.phase == "play" and gust_pending <= 0.0:
-    gust_t = randf_range(lerp(11.0, 6.0, storm_h) * gust_scale, lerp(17.0, 9.0, storm_h) * gust_scale)
+    gust_t = randf_range(lerp(11.0, 6.0, storm_h) * gust_scale, lerp(17.0, 9.0, storm_h) * gust_scale) / tower_id().gust
     gust_dir = 1.0 if randf() < 0.5 else -1.0
     gust_pending = 0.85
     sfx("gust", -19.0, 1.3)  # the warning whistle - quieter, higher
@@ -2159,7 +2686,7 @@ func _process(dt):
         title_lvl = lvl_now
         calm_sea = calm_now
         apply_storm_audio()
-        apply_storm_identity(title_lvl)
+        apply_storm_identity(title_lvl, true)
         if calm_sea:
           print("[KTL] calm sea held=", storms_held_get())
         print("[KTL] title storm lvl=", title_lvl, " rainx=", snapped((0.85 + 0.15 * title_lvl) * (0.8 if calm_sea else 1.0), 0.01))
@@ -2177,27 +2704,15 @@ func _process(dt):
         ship_trace_t = title_t
         print("[KTL] calm ship at screen ", cam.unproject_position(EXT.ship.position), " z=", ship_z)
     # the storm lives behind the card: rain, flash-caught rain, surf foam, cloud drift
-    var imt = EXT.rain_mesh
-    imt.clear_surfaces()
-    imt.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
-    for i3 in EXT.rain_drops.size():
-      var d3 = EXT.rain_drops[i3]
-      d3.y -= dt * 26.0 * rainx
-      d3.x += dt * 3.6 * rainx
-      if d3.y < 0:
-        d3 = Vector3(randf_range(-50,70), 45 + randf_range(0,4), d3.z)
-      EXT.rain_drops[i3] = d3
-      imt.surface_add_vertex(d3)
-      imt.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
-    imt.surface_end()
+    EXT.rain_scroll.x += dt * 3.6 * rainx
+    EXT.rain_scroll.y += dt * 26.0 * rainx
+    EXT.rain_mi.position.x = -fmod(EXT.rain_scroll.x, 120.0)
+    EXT.rain_mi.position.y = -fmod(EXT.rain_scroll.y, 49.0)
     EXT.rain_mat.albedo_color.a = min(1.0, 0.4 * rainx * (1.0 + 1.6 * flashV))
     for i5 in EXT.foam.size():
       var fma = EXT.foam[i5]
       fma.albedo_color.a = (0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))) * rainx
-    for i4 in EXT.clouds.size():
-      var c3 = EXT.clouds[i4]
-      c3.position.x += dt * (0.6 + i4 * 0.15)
-      if c3.position.x > 110: c3.position.x = -110
+    clouds_step(dt)
     cam.position = Vector3(sin(t_now * 0.05) * 3.0, 4.2 + sin(t_now * 0.1) * 0.5, 28)
     cam.look_at(Vector3(8, 12, -50), Vector3.UP)
     return
@@ -2233,6 +2748,21 @@ func _process(dt):
       if ST.grounded and ST.stepT <= 0:
         sfx("step", -14.0)
         ST.stepT = 0.30
+    # BASALT setpiece: keep moving through charged air and static snaps;
+    # freeze through the window - the gust-brace grammar - and it grounds out
+    if charge_t > 0.0 and ST.phase == "play":
+      charge_t -= dt
+      if dir != 0.0: charge_move += dt
+      if charge_move >= 0.5 and not charge_jolted:
+        charge_jolted = true
+        ST.oil = max(ST.oil - 2.0, 0.0)
+        ST.gust_v = -ST.faceDir * 0.35
+        sfx("clink", -12.0, 0.55)
+        print("[KTL] static jolt oil=", snapped(ST.oil, 0.1), " push=", -ST.faceDir * 0.35)
+      if charge_t <= 0.0:
+        if not charge_jolted:
+          print("[KTL] static out move=", snapped(charge_move, 0.01), " (0 = braced, <0.5 = grounded)")
+        charge_t = 0.0; charge_move = 0.0; charge_jolted = false
     var fl = floor_at(ST.th, ST.y)
     if ST.grounded:
       if fl < ST.y - 0.55:
@@ -2268,6 +2798,7 @@ func _process(dt):
       jumpBuf -= dt
       if ST.grounded or ST.coyote > 0:
         ST.grounded = false; ST.coyote = 0.0; ST.vy = 8.4; jumpBuf = 0.0
+        print("[KTL] JUMP fired")
         sfx("jump", -10.0)
         squashV = 1.14
     if ST.phase == "play":
@@ -2277,7 +2808,7 @@ func _process(dt):
       if groan_t <= 0.0:
         groan_t = randf_range(16.0, 32.0) * (1.0 - 0.12 * (storm_level - 1))
         if storm_level >= 3:
-          sfx("groan", -21.0, randf_range(0.85, 1.1))
+          sfx("groan", -21.0, randf_range(0.85, 1.1) * tower_id().groan)
           print("[KTL] tower groans lvl=", storm_level, " t=", snapped(ST.elapsed, 0.1))
       if DROPTEST and not dropped and ST.elapsed > 1.0:  # debug: drop the keeper into the stair gap
         dropped = true
@@ -2332,6 +2863,7 @@ func _process(dt):
           ST.oil = min(ST.oil + 5.0, 95.0)
           ui.pips[i].color = PANE_COLORS[i % PANE_COLORS.size()]
           sfx("chime" + str(ST.panes), -6.0)
+          motif_play(2)  # every pane lit answers with the music-box cell
           buzz(15)
           # the earned pip answers the chime - the HUD takes the pickup
           var ptw = create_tween()
@@ -2491,7 +3023,7 @@ func _process(dt):
       var dprox = clamp(1.0 - Vector2(ddth, ddy).length() / 3.0, 0.0, 1.0)
       d3.get_child(1).modulate.a = min(1.0, (0.5 + sin(t_now * 4.2 + i3 * 2.3) * 0.25) * (1.0 + 0.9 * dprox))
       d3.get_child(1).scale = Vector3(0.9, 0.9, 1) * (1.0 + 0.6 * dprox)
-      if dprox > 0.45 and not drop_flare_traced:
+      if dprox > 0.5 and not drop_flare_traced:
         drop_flare_traced = true
         print("[KTL] drop flare prox=", snapped(dprox, 0.01), " th=", snapped(ST.th, 0.1))
       elif dprox < 0.2 and drop_flare_traced:
@@ -2533,6 +3065,11 @@ func _process(dt):
         ui.notch.color.a = 0
     else:
       ui.notch.color.a = 0
+    if VISTAHOLD and ST.phase == "play":
+      if VISTAHOLD == 4: ST.th = 18.5; ST.y = floor_at(18.5, 99.0)  # frozen on the lamp-room approach (c128)
+      elif VISTAHOLD == 3: ST.th = 15.0; ST.y = floor_at(15.0, 99.0)  # frozen at the th-15.0 small window (c127)
+      elif VISTAHOLD == 2: ST.th = 7.6; ST.y = 7.62  # frozen at the balcony door (c125)
+      else: ST.th = 6.0; ST.y = 6.2  # frozen at the gallery vista: the swing converges and holds for orientation iteration
     # camera
     var desired = ST.th - 0.5 * ST.faceDir
     var zw = 0.0
@@ -2547,6 +3084,7 @@ func _process(dt):
     peek = lerp(peek, 0.0, 1.0 - pow(0.05, dt))
     if abs(peek) < 0.1: peek_traced = false
     camTh = lerp(camTh, desired, 1.0 - pow(0.001, dt))
+    if VISTAHOLD: camTh = desired; camY = ST.y + 2.4  # freeze harness: snap the swing converged
     camY = lerp(camY, ST.y + 2.4, 1.0 - pow(0.001, dt))
     var at_top = ST.y > 18.2
     var vs2 = get_viewport().get_visible_rect().size
@@ -2560,9 +3098,16 @@ func _process(dt):
       cam.position = Vector3(camRcur * cos(camTh), camY, camRcur * sin(camTh))
       var lookt = Vector3(cos(ST.th) * 5.2, ST.y + 1.35, sin(ST.th) * 5.2)
       if zw > 0.0:
-        var wt = Vector3(6.97 * cos(6.0), floor_at(6.0, 99.0) + 2.3, 6.97 * sin(6.0))
-        lookt = lookt.lerp(wt, zw * 0.55)
+        var wt6 = Vector3(6.97 * cos(6.0), floor_at(6.0, 99.0) + 2.7, 6.97 * sin(6.0))
+        var wt7 = Vector3(6.97 * cos(7.6), floor_at(7.6, 99.0) + 2.7, 6.97 * sin(7.6))
+        var wt = wt6.lerp(wt7, clamp((ST.th - 6.0) / 1.6, 0.0, 1.0))  # c125: the aim travels from the gallery window to the balcony door
+        lookt = lookt.lerp(wt, zw * 0.85)  # the vista owns the frame at the swing peak (c122: 0.55 left it 242px off-frame right)
       cam.look_at(lookt, Vector3.UP)
+      if VISTADBG and zw > 0.95 and not vista_dbg_done and tower.has("vista_node"):
+        vista_dbg_done = true
+        var vp = tower.vista_node.global_position
+        print("[KTL] vista debug sp=", cam.unproject_position(vp), " behind=", cam.is_position_behind(vp), " camTh=", snapped(camTh, 0.01), " th=", snapped(ST.th, 0.01), " zw=", snapped(zw, 0.01))
+        print("[KTL] vista dbg2 vp=", vp, " campos=", cam.global_position, " qn=", tower.vista_node.global_transform.basis.z.normalized(), " vis=", tower.vista_node.is_visible_in_tree())
     if flashV > 0.4: cam.position.y += sin(t_now * 80.0) * 0.05 * flashV
     if SHAKEHOLD: shake_cur = 0.9  # debug: pin the shake for capture
     shake_cur *= pow(0.08, dt)
@@ -2622,6 +3167,18 @@ func _process(dt):
           EXT.root.visible = true
           set_ext_lit(true)
           wenv.environment = env_ext
+          if finale_pending:
+            # the voyage answers itself: the other two lights burn on the horizon
+            for al in [[Vector3(-34.0, 7.5, -150.0), LAMP_COLS[0]], [Vector3(95.0, 9.0, -200.0), LAMP_COLS[1]]]:
+              var asp = Sprite3D.new()
+              asp.texture = tower.glow_tex
+              asp.modulate = Color(al[1].r, al[1].g, al[1].b, 0.0)
+              asp.scale = Vector3(6.0, 6.0, 1)
+              asp.position = al[0]
+              EXT.root.add_child(asp)
+              if not EXT.has("answer_lights"): EXT.answer_lights = []
+              EXT.answer_lights.append(asp)
+            print("[KTL] the other lights answer - the voyage is complete")
           sfx("bell", -8.0)
           print("[KTL] ending")
     return
@@ -2647,28 +3204,15 @@ func _process(dt):
     EXT.keeperlamp.modulate.a = 0.7 + 0.2 * sin(t_now * 11.0) + 0.08 * sin(t_now * 29.0)
     # rain rebuild (thinning as the storm gives)
     var density = 1.0 - 0.55 * give
-    var im = EXT.rain_mesh
-    im.clear_surfaces()
-    im.surface_begin(Mesh.PRIMITIVE_LINES, EXT.rain_mat)
-    for i3 in EXT.rain_drops.size():
-      var d3 = EXT.rain_drops[i3]
-      d3.y -= dt * 26.0 * ease
-      d3.x += dt * 3.6 * ease
-      if d3.y < 0:
-        d3 = Vector3(randf_range(-50,70), 45 + randf_range(0,4), d3.z)
-      EXT.rain_drops[i3] = d3
-      if float(i3) / EXT.rain_drops.size() > density:
-        continue
-      im.surface_add_vertex(d3)
-      im.surface_add_vertex(d3 + Vector3(0.14, -1.0, 0))
-    im.surface_end()
+    EXT.rain_scroll.x += dt * 3.6 * ease
+    EXT.rain_scroll.y += dt * 26.0 * ease
+    EXT.rain_mi.position.x = -fmod(EXT.rain_scroll.x, 120.0)
+    EXT.rain_mi.position.y = -fmod(EXT.rain_scroll.y, 49.0)
+    EXT.rain_mat.albedo_color.a *= density
     for i5 in EXT.foam.size():
       var fma = EXT.foam[i5]
       fma.albedo_color.a = 0.10 + 0.07 * (0.5 + 0.5 * sin(t_now * 1.3 + i5 * 1.7))
-    for i4 in EXT.clouds.size():
-      var c3 = EXT.clouds[i4]
-      c3.position.x += dt * (0.6 + i4 * 0.15)
-      if c3.position.x > 110: c3.position.x = -110
+    clouds_step(dt)
     # ship
     var ba = EXT.beams.rotation.y
     var bd = Vector2(cos(ba), -sin(ba))
@@ -2687,6 +3231,9 @@ func _process(dt):
     EXT.ship.position.z += dt * EXT.ship_turn * 3.2
     EXT.ship.position.y = sin(t_now * 1.1) * 0.25
     EXT.ship.rotation.z = sin(t_now * 0.9) * 0.04
+    if EXT.has("answer_lights"):
+      for asp2 in EXT.answer_lights:
+        asp2.modulate.a = min(0.5, asp2.modulate.a + dt * 0.2)
     if ST.phase == "ending" and not ship_traced and ST.endT > 4.0:
       ship_traced = true
       print("[KTL] ending ship at screen ", cam.unproject_position(EXT.ship.position), " endT=", snapped(ST.endT, 0.1))

@@ -2023,3 +2023,73 @@ c128-top-b.png (real-play audit), c128-spill.png (after)
 - verify3 e2e: 85s, WON ok, chimes=5.
 
 ### Grade: PASS
+
+---
+
+## c129 GO-LIVE + live verification (9/28 19:02)
+
+- Bridge deployed c129 at public commit 115b37a0. Bridge exports with Godot 4.5 templates; local harness uses 4.3 - byte-level mismatch vs local export is EXPECTED, so verification was functional, not byte-compare.
+- Live evidence (fresh headless captures off https://aeiouvcode.github.io/keep-the-light/):
+  - boot-live-3s/12s: title card + BEGIN/TODAY'S buttons render correctly on 4.5.
+  - c129-live-balcony vs c129-local-balcony: same composition - window moon disc + feathered glint column (c127), soft sky (c129), HUD.
+  - win-probe (auto=1&fast=1): trace phase=won th=19.48 oil=93 panes=5 - full playability on the live 4.5 build.
+- False alarm during verification: "title shows gameplay" was my own probe bug (empty-string params fall through a JS || default to auto=1&vistahold=1), not a live defect.
+- Grade: PASS - live serves c129 content, fully playable. c127+c128+c129 all live.
+
+---
+
+## c130 — coast + crossing full-screen overhaul (substantive delta, 9/28)
+
+### Problem restatement (PLAN.md, audit-verified first)
+1. THE CROSSING minigame rendered inside a ~300x190 card — 3 tap lanes ~40px wide on the owner's phone, drawn scene unreadable (audit-cross.png).
+2. THE COAST map had the same card-squish (MapDraw hardcoded for a 300x150 surface; lamps at fixed 60+i*95 px) — code-confirmed; no debug hook existed to frame-audit it.
+
+### What changed (main.gd, 31 + 4 + 3 asserted patches)
+- mk_cross + mk_map: card shells replaced with full-screen overlay Controls (PRESET_FULL_RECT); titles/labels/buttons re-parented as overlay children (cream on the scenes' own dark ocean backdrop). Buttons/labels got explicit container rects — zero-size preset rects collapsed the BACK/SAIL row on the first pass (caught on frames, fixed).
+- CrossDraw + MapDraw: all geometry now scales off u = clampf(w/320, 1, 2.2) (moon, lamp, arc, bands, boat via transform scale, spray, stars, sea, headland polygon, towers, beams, tap radius). Map lamps now proportional (w * (0.19 + i*0.31)).
+- Crossing destination lamp moved to h*0.14 after the progress arc collided with the subtitle on first frames.
+- New coast=1 capture hook (same pattern as cross=1).
+
+### Verification (rule 5, fresh build)
+- c130-cross-mid5.png: full-screen crossing — title/subtitle clear of lamp+arc, bands readable in 3 lanes, boat scaled. PASS.
+- c130-coast2.png: full-screen coast — title/name/sub, stars, moon, lit lamp 0 with beam + sel ring, locked lamps 1-2 dim, BACK + disabled "YOU ARE HERE" buttons visible. PASS (middle composition airy — noted as future polish, not a defect).
+- Full flow proof: an early capture landed post-arrival (keeper at chapter-2 spawn, banner) — overlay ran, arrived, chapter_set fired clean.
+- verify3 e2e: 88.6s, WON ok, chimes=5.
+
+### Grade: PASS
+
+---
+
+## c131 — storm identity reads in-play (substantive delta, 9/29)
+
+### Problem restatement (PLAN.md, audit-first)
+Balcony audit on the c130 build (c131-audit-s1/s3/s5.png): storms 1-5 looked identical at the showcase window. Root causes in code: the balcony doorway vista material (bqm) was never registered in tower.sky_mats; the sky_mats tint carried no per-level darkening; rain streak texture was a constant bake; only audio and height-based lightning varied.
+
+### What changed (main.gd, 11 asserted patches)
+- bqm registered in sky_mats; the tint loop now multiplies per-level darkness in AND tints emission-enabled mats (the balcony vista emits its own moonlight - that channel was holding the moon white).
+- tex_rain_streaks(lvl): count 22-54, slant 0.15-0.63, length 14-22, alpha 0.43-0.63 by level; tower.rain_mats registry at all 5 use sites; regen only on level change.
+- Lightning cadence now also scales with storm level (/(0.75 + 0.13*lvl)).
+
+### Verification (rule 5, fresh build, before/after same pose)
+- c131-s1 vs c131-s3 vs c131-s5 (balcony, storms 1/3/5): white moon + sparse vertical rain -> violet moon + moderate rain -> blood-ember moon + dense slanted rain + eaten sky. Distinct at a glance.
+- verify3 e2e: 89.3s, WON ok, chimes=5.
+
+### Grade: PASS
+
+---
+
+## c132 — coast map composition rebalance (substantive delta, 9/29 PM)
+
+### Problem restatement (PLAN.md, audit-first)
+The c130 full-screen coast parked all content in the bottom band; middle 60% dead (worst in the all-lit state, c132-coast-full.png). Same audit pass checked title/gallery/balcony palette cohesion at storm 3: coherent (title moon slightly whiter than tinted in-game moons - noted, not a defect). c131's parameterized rain confirmed live on the title exterior.
+
+### What changed (MapDraw, 19 asserted patches)
+- Bottom scene re-anchored to hs = 0.78h: sea band now spans 0.72h to the bottom edge (taller, two extra swell lines), headland + lamps ride the hs anchor (lamp(i) = 0.78h - 86u).
+- Faint glint column under the moon down to the sea - connects top and bottom through the old dead middle.
+
+### Verification (rule 5, fresh build)
+- c132-coast-fixed.png (chapter 2, all lamps lit): lamps on the headland at ~0.66h, taller sea with swells, glint column, buttons clear. Middle reads intentional, not dead. PASS.
+- c132-gallery-reg.png: gallery vista unchanged - no regression. PASS.
+- verify3 e2e: 91.9s, WON ok, chimes=5.
+
+### Grade: PASS

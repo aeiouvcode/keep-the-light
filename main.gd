@@ -52,6 +52,7 @@ var storm_level = 1
 var storm_base = 0.0
 var gust_scale = 1.0
 var STORM_OVERRIDE = 0
+var storm_rain_lvl = 1
 var title_lvl = 0
 var title_audio_t = 0.0
 var calm_sea = false
@@ -357,9 +358,16 @@ func apply_storm_identity(lvl, for_title=false):
   var bge = Color(0.039, 0.059, 0.094) * t * dark
   env_ext.background_color = bge
   env_ext.fog_light_color = bge
+  if tower.has("rain_mats") and lvl != storm_rain_lvl:
+    storm_rain_lvl = lvl
+    var rt = tex_rain_streaks(lvl)
+    for rm2 in tower.rain_mats: rm2.albedo_texture = rt
   if hemi_moon_ref: hemi_moon_ref.light_color = Color(0.729, 0.788, 0.910) * t * tower_id().moon
   if tower.has("sky_mats"):
-    for sm in tower.sky_mats: sm.albedo_color = t
+    var sd = Color(t.r * dark, t.g * dark, t.b * dark)
+    for sm in tower.sky_mats:
+      sm.albedo_color = sd
+      if sm.emission_enabled: sm.emission = sd  # the balcony vista emits its own moonlight - tint that channel too
   if EXT.has("moon_mats"):
     for i2 in EXT.moon_mats.size():
       EXT.moon_mats[i2].emission = EXT.moon_base[i2] * t
@@ -507,13 +515,17 @@ func tex_vista():
     img.fill_rect(Rect2i(shx + (i % 2), shy + 3 + i * 2, 1, 1), Color(0.9, 0.64, 0.4, 0.28 - i * 0.05))
   return ImageTexture.create_from_image(img)
 
-func tex_rain_streaks():
+func tex_rain_streaks(lvl = 1):
+  # storm identity in the rain itself: higher storms throw more, longer, harder-slanted streaks
   var img = Image.create(128, 128, false, Image.FORMAT_RGBA8)
   img.fill(Color(0,0,0,0))
-  for i in 26:
+  var n = 14 + 8 * lvl
+  var slant = 0.15 + 0.12 * (lvl - 1)
+  var a0 = 0.38 + 0.05 * lvl
+  for i in n:
     var x = randf() * 128; var y = randf() * 128
-    for k in 12:
-      img.set_pixel(int(x + k*0.15) % 128, (int(y) + k) % 128, Color(0.62, 0.72, 0.83, 0.5 - k*0.03))
+    for k in 12 + 2 * lvl:
+      img.set_pixel(int(x + k*slant) % 128, (int(y) + k) % 128, Color(0.62, 0.72, 0.83, a0 - k*0.025))
   return ImageTexture.create_from_image(img)
 
 func tex_beam():
@@ -701,6 +713,8 @@ func build_tower(root):
     var rainm = StandardMaterial3D.new()
     rainm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     rainm.albedo_texture = rain_t
+    if not tower.has("rain_mats"): tower.rain_mats = []
+    tower.rain_mats.append(rainm)
     rainm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     rainm.uv1_scale = Vector3(1, 3, 1)
     rainq.material_override = rainm
@@ -715,6 +729,8 @@ func build_tower(root):
     var dmt = StandardMaterial3D.new()
     dmt.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
     dmt.albedo_texture = rain_t
+    if not tower.has("rain_mats"): tower.rain_mats = []
+    tower.rain_mats.append(dmt)
     dmt.albedo_color = Color(0.75, 0.82, 0.95, 0.12)
     dmt.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
     dmt.uv1_scale = Vector3(1, 2, 1)
@@ -813,6 +829,8 @@ func build_tower(root):
   bqm.emission_texture = vista
   bqm.emission_energy_multiplier = 0.55
   bq.material_override = bqm
+  if not tower.has("sky_mats"): tower.sky_mats = []
+  tower.sky_mats.append(bqm)  # c131: the balcony vista was invisible to storm identity
   bq.position = Vector3(0, 2.3, 0.08)
   bd.add_child(bq)
   var brq = MeshInstance3D.new()
@@ -820,6 +838,8 @@ func build_tower(root):
   var brm = StandardMaterial3D.new()
   brm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
   brm.albedo_texture = rain_t
+  if not tower.has("rain_mats"): tower.rain_mats = []
+  tower.rain_mats.append(brm)
   brm.albedo_color = Color(1,1,1,0.5)
   brm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
   brm.uv1_scale = Vector3(1, 3, 1)
@@ -978,6 +998,8 @@ func build_lamp_room(root):
   lstreakm.cull_mode = BaseMaterial3D.CULL_DISABLED
   lstreakm.albedo_color = Color(1, 1, 1, 0.10)
   lstreakm.albedo_texture = tex_rain_streaks()
+  if not tower.has("rain_mats"): tower.rain_mats = []
+  tower.rain_mats.append(lstreakm)
   lstreakm.uv1_scale = Vector3(12, 1, 1)
   var lstreak = MeshInstance3D.new()
   var lstm = CylinderMesh.new(); lstm.top_radius = 5.34; lstm.bottom_radius = 5.34; lstm.height = 2.2; lstm.radial_segments = 24
@@ -1179,22 +1201,29 @@ func mk_card(title, sub, body, btn):
 var MapDraw = GDScript.new()
 var CrossDraw = GDScript.new()
 func mk_map():
-  MapDraw.source_code = "extends Control\nsignal picked(i)\nvar unlocked = 0\nvar sel = 0\nvar cols = []  # set from LAMP_COLS at build - one canonical source\nfunc lamp(i):\n\treturn Vector2(60.0 + i * 95.0, size.y - 86.0)\nfunc _ready():\n\tmouse_filter = Control.MOUSE_FILTER_STOP\nfunc _draw():\n\tvar w = size.x\n\tvar h = size.y\n\tdraw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n\tfor sp in [Vector2(28, 18), Vector2(66, 40), Vector2(120, 14), Vector2(180, 30), Vector2(232, 12), Vector2(92, 56), Vector2(268, 46)]:\n\t\tdraw_circle(sp, 1.1, Color(0.7, 0.75, 0.85, 0.5))\n\tdraw_circle(Vector2(w - 46, 30), 15.0, Color(0.85, 0.88, 0.95, 0.10))\n\tdraw_circle(Vector2(w - 46, 30), 9.0, Color(0.85, 0.88, 0.95, 0.9))\n\tdraw_rect(Rect2(0, h - 44, w, 44), Color(0.05, 0.075, 0.11))\n\tfor gy in [h - 34, h - 24, h - 14]:\n\t\tdraw_line(Vector2(0, gy), Vector2(w, gy), Color(0.5, 0.62, 0.78, 0.12), 1.0)\n\tdraw_line(Vector2(w - 56, h - 30), Vector2(w - 36, h - 30), Color(0.85, 0.88, 0.95, 0.22), 2.0)\n\tdraw_colored_polygon(PackedVector2Array([Vector2(0, h - 40), Vector2(34, h - 52), Vector2(60, h - 58), Vector2(96, h - 48), Vector2(130, h - 55), Vector2(155, h - 62), Vector2(185, h - 50), Vector2(220, h - 56), Vector2(250, h - 60), Vector2(286, h - 46), Vector2(w, h - 42), Vector2(w, h - 44), Vector2(0, h - 44)]), Color(0.02, 0.03, 0.05))\n\tfor i in 3:\n\t\tvar lp = lamp(i)\n\t\tvar lit = i <= unlocked\n\t\tvar c = cols[i] if lit else Color(0.42, 0.44, 0.5)\n\t\tvar base = lp + Vector2(0, 40)\n\t\tdraw_colored_polygon(PackedVector2Array([base + Vector2(-5, 0), lp + Vector2(-3, 6), lp + Vector2(3, 6), base + Vector2(5, 0)]), c.darkened(0.6))\n\t\tvar d = 5.0\n\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(0, -d), lp + Vector2(d, 0), lp + Vector2(0, d), lp + Vector2(-d, 0)]), c)\n\t\tif lit:\n\t\t\tdraw_circle(lp, 9.0, Color(c.r, c.g, c.b, 0.15))\n\t\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(4, -2), lp + Vector2(46, -12), lp + Vector2(46, 4), lp + Vector2(4, 2)]), Color(c.r, c.g, c.b, 0.10))\n\t\tif i == sel:\n\t\t\tdraw_arc(lp, 13.0, 0.0, TAU, 24, Color(0.95, 0.92, 0.85, 0.9), 1.6)\nfunc _gui_input(ev):\n\tvar pos = Vector2(-1, -1)\n\tif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:\n\t\tpos = ev.position\n\tif ev is InputEventScreenTouch and ev.pressed:\n\t\tpos = ev.position\n\tif pos.x < 0.0:\n\t\treturn\n\tfor i in 3:\n\t\tif pos.distance_to(lamp(i)) < 26.0:\n\t\t\tif i <= unlocked:\n\t\t\t\tsel = i\n\t\t\t\tqueue_redraw()\n\t\t\tpicked.emit(i)"
+  MapDraw.source_code = "extends Control\nsignal picked(i)\nvar unlocked = 0\nvar sel = 0\nvar cols = []  # set from LAMP_COLS at build - one canonical source\nfunc lamp(i):\n\treturn Vector2(size.x * (0.19 + i * 0.31), size.y * 0.78 - 86.0 * clampf(size.x / 320.0, 1.0, 2.2))\nfunc _ready():\n\tmouse_filter = Control.MOUSE_FILTER_STOP\nfunc _draw():\n\tvar w = size.x\n\tvar h = size.y\n\tvar u = clampf(w / 320.0, 1.0, 2.2)\n\tvar hs = h * 0.78\n\tdraw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n\tfor sp in [Vector2(28, 18), Vector2(66, 40), Vector2(120, 14), Vector2(180, 30), Vector2(232, 12), Vector2(92, 56), Vector2(268, 46)]:\n\t\tdraw_circle(Vector2(sp.x * u, sp.y * u), 1.5 * u, Color(0.7, 0.75, 0.85, 0.5))\n\tdraw_circle(Vector2(w - 46.0 * u, 30.0 * u), 15.0 * u, Color(0.85, 0.88, 0.95, 0.10))\n\tdraw_circle(Vector2(w - 46.0 * u, 30.0 * u), 9.0 * u, Color(0.85, 0.88, 0.95, 0.9))\n\tdraw_rect(Rect2(0, hs - 44.0 * u, w, h - hs + 44.0 * u), Color(0.05, 0.075, 0.11))\n\tfor gy in [hs - 34.0 * u, hs - 24.0 * u, hs - 14.0 * u, hs + 10.0, hs + 34.0]:\n\t\tdraw_line(Vector2(0, gy), Vector2(w, gy), Color(0.5, 0.62, 0.78, 0.12), 1.0)\n\tfor gi in 12:\n\t\tvar gy2 = 56.0 + gi * (hs - 100.0) / 12.0\n\t\tdraw_line(Vector2(w - 52.0 * u, gy2), Vector2(w - 40.0 * u, gy2), Color(0.85, 0.88, 0.95, 0.045), 1.0)\n\tdraw_line(Vector2(w - 56.0 * u, hs + 4.0), Vector2(w - 36.0 * u, hs + 4.0), Color(0.85, 0.88, 0.95, 0.22), 2.0)\n\tdraw_colored_polygon(PackedVector2Array([Vector2(0, hs - 40.0 * u), Vector2(34.0 * u, hs - 52.0 * u), Vector2(60.0 * u, hs - 58.0 * u), Vector2(96.0 * u, hs - 48.0 * u), Vector2(130.0 * u, hs - 55.0 * u), Vector2(155.0 * u, hs - 62.0 * u), Vector2(185.0 * u, hs - 50.0 * u), Vector2(220.0 * u, hs - 56.0 * u), Vector2(250.0 * u, hs - 60.0 * u), Vector2(286.0 * u, hs - 46.0 * u), Vector2(w, hs - 42.0 * u), Vector2(w, hs - 44.0 * u), Vector2(0, hs - 44.0 * u)]), Color(0.02, 0.03, 0.05))\n\tfor i in 3:\n\t\tvar lp = lamp(i)\n\t\tvar lit = i <= unlocked\n\t\tvar c = cols[i] if lit else Color(0.42, 0.44, 0.5)\n\t\tvar base = lp + Vector2(0, 40.0 * u)\n\t\tdraw_colored_polygon(PackedVector2Array([base + Vector2(-5.0 * u, 0), lp + Vector2(-3.0 * u, 6.0 * u), lp + Vector2(3.0 * u, 6.0 * u), base + Vector2(5.0 * u, 0)]), c.darkened(0.6))\n\t\tvar d = 5.0 * u\n\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(0, -d), lp + Vector2(d, 0), lp + Vector2(0, d), lp + Vector2(-d, 0)]), c)\n\t\tif lit:\n\t\t\tdraw_circle(lp, 9.0 * u, Color(c.r, c.g, c.b, 0.15))\n\t\t\tdraw_colored_polygon(PackedVector2Array([lp + Vector2(4.0 * u, -2.0 * u), lp + Vector2(46.0 * u, -12.0 * u), lp + Vector2(46.0 * u, 4.0 * u), lp + Vector2(4.0 * u, 2.0 * u)]), Color(c.r, c.g, c.b, 0.10))\n\t\tif i == sel:\n\t\t\tdraw_arc(lp, 13.0 * u, 0.0, TAU, 24, Color(0.95, 0.92, 0.85, 0.9), 1.6 * u)\nfunc _gui_input(ev):\n\tvar pos = Vector2(-1, -1)\n\tif ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:\n\t\tpos = ev.position\n\tif ev is InputEventScreenTouch and ev.pressed:\n\t\tpos = ev.position\n\tif pos.x < 0.0:\n\t\treturn\n\tfor i in 3:\n\t\tif pos.distance_to(lamp(i)) < 26.0 * clampf(size.x / 320.0, 1.0, 2.2):\n\t\t\tif i <= unlocked:\n\t\t\t\tsel = i\n\t\t\t\tqueue_redraw()\n\t\t\tpicked.emit(i)"
   MapDraw.reload()
-  var sh = mk_card_shell(0.55)
-  var vb = sh[2]
-  var h = mk_label("THE COAST", 27, ink())
-  vb.add_child(h)
+  var ov = Control.new()
+  ov.set_anchors_preset(Control.PRESET_FULL_RECT)
+  ov.visible = false
   var md = Control.new()
-  md.custom_minimum_size = Vector2(300, 150)
+  md.set_anchors_preset(Control.PRESET_FULL_RECT)
   md.set_script(MapDraw)
   md.set("cols", LAMP_COLS)
-  vb.add_child(md)
-  md.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-  var nm = mk_label("", 14, ink())
+  ov.add_child(md)
+  var vb = VBoxContainer.new()
+  vb.set_anchors_preset(Control.PRESET_CENTER_TOP)
+  vb.offset_left = -200
+  vb.offset_right = 200
+  vb.offset_top = 20
+  vb.offset_bottom = 110
+  vb.alignment = BoxContainer.ALIGNMENT_CENTER
+  vb.add_child(mk_label("THE COAST", 24, cream()))
+  var nm = mk_label("", 14, cream())
   vb.add_child(nm)
-  var stl = mk_label("", 11, Color(0.29, 0.26, 0.22, 0.75))
+  var stl = mk_label("", 11, Color(cream(), 0.6))
   vb.add_child(stl)
+  ov.add_child(vb)
   var row = HBoxContainer.new()
   row.alignment = BoxContainer.ALIGNMENT_CENTER
   row.add_theme_constant_override("separation", 10)
@@ -1212,9 +1241,12 @@ func mk_map():
   sail.add_theme_color_override("font_disabled_color", cream().darkened(0.35))
   row.add_child(back)
   row.add_child(sail)
-  vb.add_child(row)
-  row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-  card_shell_finish(sh)
+  row.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+  row.offset_left = -160
+  row.offset_right = 160
+  row.offset_top = -92
+  row.offset_bottom = -30
+  ov.add_child(row)
   ui.map_md = md
   ui.map_name = nm
   ui.map_sub = stl
@@ -1222,28 +1254,35 @@ func mk_map():
   md.connect("picked", _on_coast_pick)
   back.pressed.connect(_on_coast_back)
   sail.pressed.connect(_on_sail)
-  return sh[0]
+  return ov
 
 func mk_cross():
-  CrossDraw.source_code = "extends Control\nsignal arrived(h)\nsignal splashed(h)\nsignal steered(l)\nsignal settled(l, ms)\nvar running = false\nvar t = 0.0\nvar dur = 14.0\nvar lane = 1.0\nvar target_lane = 1\nvar hits = 0\nvar bands = []\nvar spawn_t = 0.0\nvar rng = RandomNumberGenerator.new()\nvar spray = 0.0\nvar steer_t0 = -1.0\nvar rect_traced = false\nvar lamp_col = Color(1.0, 0.9, 0.7)\nfunc _ready():\n	mouse_filter = Control.MOUSE_FILTER_STOP\nfunc begin(seed_n, col = Color(1.0, 0.9, 0.7)):\n	lamp_col = col\n	print('[KTL] cross lamp col=', lamp_col)\n	rng.seed = seed_n\n	t = 0.0; hits = 0; bands.clear(); lane = 1.0; target_lane = 1; spray = 0.0\n	spawn_t = 0.6\n	running = true\n	rect_traced = false\n	queue_redraw()\nfunc _process(dt):\n	if not running: return\n	t += dt\n	spray = max(0.0, spray - dt * 2.5)\n	lane = lerp(lane, float(target_lane), min(1.0, dt * 7.5))\n	if steer_t0 >= 0.0 and abs(lane - float(target_lane)) < 0.05:\n		settled.emit(target_lane, int((t - steer_t0) * 1000.0))\n		steer_t0 = -1.0\n	spawn_t -= dt\n	if spawn_t <= 0.0 and t < dur - 1.2:\n		spawn_t = rng.randf_range(0.7, 1.1)\n		bands.append([rng.randi_range(0, 2), -12.0, false])\n		print('[KTL] cross wave lane=', bands[-1][0])\n	var yb = size.y * 0.80\n	for b in bands:\n		b[1] += dt * size.y * 0.30\n		if not b[2] and b[1] > yb - 7.0 and b[1] < yb + 7.0 and b[0] == int(lane + 0.5):\n			b[2] = true\n			hits += 1\n			spray = 1.0\n			splashed.emit(hits)\n			print('[KTL] cross splash hits=', hits, ' lane=', b[0])\n	if t >= dur:\n		running = false\n		arrived.emit(hits)\n	queue_redraw()\nfunc _gui_input(ev):\n	print('[KTL] cross ev ', ev.get_class(), ' pos=', (ev.position if (ev is InputEventMouseButton or ev is InputEventMouseMotion) else Vector2(-9,-9)))\n	if not running: return\n	var pos = Vector2(-1, -1)\n	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT: pos = ev.position\n	elif ev is InputEventMouseMotion: pos = ev.position\n	elif ev is InputEventScreenTouch and ev.pressed: pos = ev.position\n	elif ev is InputEventScreenDrag: pos = ev.position\n	if pos.x < 0.0: return\n	var nl = clampi(int(pos.x / size.x * 3.0), 0, 2)\n	if nl != target_lane: steer_t0 = t\n	target_lane = nl\n	steered.emit(target_lane)\nfunc _draw():\n	var w = size.x\n	var h = size.y\n	draw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n	draw_circle(Vector2(w - 40, 26), 8.0, Color(0.85, 0.88, 0.95, 0.8))\n	var glow = 0.25 + 0.75 * min(1.0, t / dur)\n	draw_circle(Vector2(w * 0.5, 34), 6.0, Color(lamp_col, 0.25 * glow))\n	draw_colored_polygon(PackedVector2Array([Vector2(w * 0.5 - 3, 40), Vector2(w * 0.5 + 3, 40), Vector2(w * 0.5 + 2, 30), Vector2(w * 0.5 - 2, 30)]), Color(lamp_col, 0.8))\n	for i in 5:\n		var yy = h * 0.25 + i * h * 0.13 + sin(t * 0.9 + i * 1.7) * 3.0\n		draw_line(Vector2(0, yy), Vector2(w, yy), Color(0.5, 0.62, 0.78, 0.10 + 0.03 * i), 1.0)\n	for b in bands:\n		var lx = b[0] * w / 3.0\n		var al = 0.55 if not b[2] else 0.18\n		draw_line(Vector2(lx + 6, b[1]), Vector2(lx + w / 3.0 - 6, b[1] + 3.0), Color(0.72, 0.82, 0.95, al), 3.0)\n	var bx = (lane + 0.5) * w / 3.0\n	var by = h * 0.80\n	var bob = sin(t * 2.2) * 2.0\n	var heel = clampf((float(target_lane) - lane) * 0.4, -0.45, 0.45)\n	draw_set_transform(Vector2(bx, by + bob), heel, Vector2.ONE)\n	draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(11, 0), Vector2(7, 7), Vector2(-7, 7)]), Color(0.16, 0.13, 0.10))\n	draw_circle(Vector2(0, -5), 3.0, Color(1.0, 0.85, 0.55, 0.95))\n	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n	if spray > 0.0:\n		draw_circle(Vector2(bx, by - 2), 10.0 * spray, Color(0.75, 0.85, 0.95, 0.35 * spray))\n	draw_arc(Vector2(w * 0.5, 34), 12.0, -PI / 2.0, -PI / 2.0 + TAU * min(1.0, t / dur), 24, Color(lamp_col, 0.6), 2.0)"
+  CrossDraw.source_code = "extends Control\nsignal arrived(h)\nsignal splashed(h)\nsignal steered(l)\nsignal settled(l, ms)\nvar running = false\nvar t = 0.0\nvar dur = 14.0\nvar lane = 1.0\nvar target_lane = 1\nvar hits = 0\nvar bands = []\nvar spawn_t = 0.0\nvar rng = RandomNumberGenerator.new()\nvar spray = 0.0\nvar steer_t0 = -1.0\nvar rect_traced = false\nvar lamp_col = Color(1.0, 0.9, 0.7)\nfunc _ready():\n	mouse_filter = Control.MOUSE_FILTER_STOP\nfunc begin(seed_n, col = Color(1.0, 0.9, 0.7)):\n	lamp_col = col\n	print('[KTL] cross lamp col=', lamp_col)\n	rng.seed = seed_n\n	t = 0.0; hits = 0; bands.clear(); lane = 1.0; target_lane = 1; spray = 0.0\n	spawn_t = 0.6\n	running = true\n	rect_traced = false\n	queue_redraw()\nfunc _process(dt):\n	if not running: return\n	t += dt\n	spray = max(0.0, spray - dt * 2.5)\n	lane = lerp(lane, float(target_lane), min(1.0, dt * 7.5))\n	if steer_t0 >= 0.0 and abs(lane - float(target_lane)) < 0.05:\n		settled.emit(target_lane, int((t - steer_t0) * 1000.0))\n		steer_t0 = -1.0\n	spawn_t -= dt\n	if spawn_t <= 0.0 and t < dur - 1.2:\n		spawn_t = rng.randf_range(0.7, 1.1)\n		bands.append([rng.randi_range(0, 2), -12.0, false])\n		print('[KTL] cross wave lane=', bands[-1][0])\n	var yb = size.y * 0.80\n	for b in bands:\n		b[1] += dt * size.y * 0.30\n		if not b[2] and b[1] > yb - 7.0 and b[1] < yb + 7.0 and b[0] == int(lane + 0.5):\n			b[2] = true\n			hits += 1\n			spray = 1.0\n			splashed.emit(hits)\n			print('[KTL] cross splash hits=', hits, ' lane=', b[0])\n	if t >= dur:\n		running = false\n		arrived.emit(hits)\n	queue_redraw()\nfunc _gui_input(ev):\n	print('[KTL] cross ev ', ev.get_class(), ' pos=', (ev.position if (ev is InputEventMouseButton or ev is InputEventMouseMotion) else Vector2(-9,-9)))\n	if not running: return\n	var pos = Vector2(-1, -1)\n	if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT: pos = ev.position\n	elif ev is InputEventMouseMotion: pos = ev.position\n	elif ev is InputEventScreenTouch and ev.pressed: pos = ev.position\n	elif ev is InputEventScreenDrag: pos = ev.position\n	if pos.x < 0.0: return\n	var nl = clampi(int(pos.x / size.x * 3.0), 0, 2)\n	if nl != target_lane: steer_t0 = t\n	target_lane = nl\n	steered.emit(target_lane)\nfunc _draw():\n	var w = size.x\n	var h = size.y\n	var u = clampf(w / 320.0, 1.0, 2.2)\n	draw_rect(Rect2(0, 0, w, h), Color(0.035, 0.05, 0.078))\n	draw_circle(Vector2(w - 40.0 * u, 26.0 * u), 8.0 * u, Color(0.85, 0.88, 0.95, 0.8))\n	var glow = 0.25 + 0.75 * min(1.0, t / dur)\n	draw_circle(Vector2(w * 0.5, h * 0.14), 6.0 * u, Color(lamp_col, 0.25 * glow))\n	draw_colored_polygon(PackedVector2Array([Vector2(w * 0.5 - 3.0 * u, h * 0.14 + 6.0 * u), Vector2(w * 0.5 + 3.0 * u, h * 0.14 + 6.0 * u), Vector2(w * 0.5 + 2.0 * u, h * 0.14 - 4.0 * u), Vector2(w * 0.5 - 2.0 * u, h * 0.14 - 4.0 * u)]), Color(lamp_col, 0.8))\n	for i in 5:\n		var yy = h * 0.25 + i * h * 0.13 + sin(t * 0.9 + i * 1.7) * 3.0\n		draw_line(Vector2(0, yy), Vector2(w, yy), Color(0.5, 0.62, 0.78, 0.10 + 0.03 * i), 1.0)\n	for b in bands:\n		var lx = b[0] * w / 3.0\n		var al = 0.55 if not b[2] else 0.18\n		draw_line(Vector2(lx + 6, b[1]), Vector2(lx + w / 3.0 - 6, b[1] + 3.0), Color(0.72, 0.82, 0.95, al), 3.0 * u)\n	var bx = (lane + 0.5) * w / 3.0\n	var by = h * 0.80\n	var bob = sin(t * 2.2) * 2.0\n	var heel = clampf((float(target_lane) - lane) * 0.4, -0.45, 0.45)\n	draw_set_transform(Vector2(bx, by + bob), heel, Vector2.ONE * u)\n	draw_colored_polygon(PackedVector2Array([Vector2(-11, 0), Vector2(11, 0), Vector2(7, 7), Vector2(-7, 7)]), Color(0.16, 0.13, 0.10))\n	draw_circle(Vector2(0, -5), 3.0, Color(1.0, 0.85, 0.55, 0.95))\n	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)\n	if spray > 0.0:\n		draw_circle(Vector2(bx, by - 2.0 * u), 10.0 * u * spray, Color(0.75, 0.85, 0.95, 0.35 * spray))\n	draw_arc(Vector2(w * 0.5, h * 0.14), 12.0 * u, -PI / 2.0, -PI / 2.0 + TAU * min(1.0, t / dur), 24, Color(lamp_col, 0.6), 2.0 * u)"
   CrossDraw.reload()
-  var sh = mk_card_shell(0.55)
-  var vb = sh[2]
-  vb.add_child(mk_label("THE CROSSING", 27, ink()))
+  var ov = Control.new()
+  ov.set_anchors_preset(Control.PRESET_FULL_RECT)
+  ov.visible = false
   var cd = Control.new()
-  cd.custom_minimum_size = Vector2(300, 190)
+  cd.set_anchors_preset(Control.PRESET_FULL_RECT)
   cd.set_script(CrossDraw)
-  vb.add_child(cd)
-  cd.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-  vb.add_child(mk_label("RIDE THE CALM WATER", 11, Color(0.29, 0.26, 0.22, 0.75)))
-  card_shell_finish(sh)
+  ov.add_child(cd)
+  var vb = VBoxContainer.new()
+  vb.set_anchors_preset(Control.PRESET_CENTER_TOP)
+  vb.offset_left = -200
+  vb.offset_right = 200
+  vb.offset_top = 20
+  vb.offset_bottom = 100
+  vb.alignment = BoxContainer.ALIGNMENT_CENTER
+  vb.add_child(mk_label("THE CROSSING", 24, cream()))
+  vb.add_child(mk_label("RIDE THE CALM WATER", 11, Color(cream(), 0.6)))
+  ov.add_child(vb)
   ui.cross_md = cd
   cd.connect("arrived", _on_cross_arrived)
   cd.connect("splashed", _on_cross_splash)
   cd.connect("steered", func(l): print("[KTL] cross steer lane=", l))
   cd.connect("steered", func(l): _on_cross_steered(l))
   cd.connect("settled", func(l, ms): print("[KTL] cross lane settled lane=", l, " ms=", ms))
-  return sh[0]
+  return ov
 
 func _on_end_pressed():
   if end_to_coast: _on_coast(true)
@@ -1604,6 +1643,8 @@ func build_exterior():
   rm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
   rm.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
   rm.albedo_texture = tex_rain_streaks()
+  if not tower.has("rain_mats"): tower.rain_mats = []
+  tower.rain_mats.append(rm)
   rm.uv1_scale = Vector3(1, 6, 1)
   road.material_override = rm
   road.rotation.x = -PI/2.0; road.rotation.z = 0.18
@@ -1871,6 +1912,7 @@ var vista_dbg_done = false
 var FLASHHOLD = false
 var GROANHOLD = false
 var CROSSHOOK = false
+var COASTHOOK = false
 var CROSS2 = false
 var groan_t = 9.0
 var flameLow = false
@@ -1917,6 +1959,7 @@ func _ready():
     CLICKLOG = "clicklog=1" in q
     CROSSHOOK = "cross=1" in q
     CROSS2 = "cross=2" in q
+    COASTHOOK = "coast=1" in q
     FINECAP = "finecap=1" in q
     VIGHOLD = "vighold=1" in q
     VISTADBG = "vistadebug=1" in q
@@ -2028,6 +2071,9 @@ func _ready():
   if CROSSHOOK or CROSS2:
     _on_cross_start(2 if CROSS2 else 1)  # debug: open the crossing directly (capture hook)
     print("[KTL] cross hook open (debug)")
+  if COASTHOOK:
+    _on_coast(false)  # debug: open the coast map directly (capture hook)
+    print("[KTL] coast hook open (debug)")
   if AUTO:
     await get_tree().create_timer(0.4).timeout
     if DAILYHOOK:
@@ -2551,7 +2597,7 @@ func _process(dt):
     storm_h = clamp(storm_h - 0.55 * exp(-pow(ST.th - 14.5, 2.0) / 2.5), 0.0, 1.0)  # the eye of the storm
   thunder_t -= dt
   if thunder_t <= 0:
-    thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h)) / tower_id().spark
+    thunder_t = randf_range(lerp(7.0, 3.2, storm_h), lerp(16.0, 7.5, storm_h)) / tower_id().spark / (0.75 + 0.13 * storm_level_get())  # c131: higher storms flash more
     flashV = 1.0
     flash2_armed = true
     var dist = randf()
